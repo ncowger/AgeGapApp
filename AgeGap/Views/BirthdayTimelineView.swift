@@ -70,7 +70,7 @@ struct TimelineContent: View {
                         Circle()
                             .fill(colorForRelationship(person.relationshipTag))
                             .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                             .shadow(radius: 2)
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))

@@ -4,11 +4,13 @@ import Foundation
 
 @Model
 final class Person {
-    var id: UUID
-    var name: String
-    var birthday: Date
-    var relationshipTag: String
-    var photoData: Data?
+    // Default values are required for CloudKit sync compatibility —
+    // CloudKit can deliver partial records and needs a safe fallback for every field.
+    var id: UUID = UUID()
+    var name: String = ""
+    var birthday: Date = Date()
+    var relationshipTag: String = RelationshipTag.other.rawValue
+    var photoData: Data? = nil
 
     init(name: String, birthday: Date, relationshipTag: String, photoData: Data? = nil) {
         self.id = UUID()
@@ -50,6 +52,7 @@ final class Person {
 }
 
 enum RelationshipTag: String, CaseIterable {
+    case me = "Me"
     case parent = "Parent"
     case sibling = "Sibling"
     case child = "Child"
@@ -64,6 +67,7 @@ enum RelationshipTag: String, CaseIterable {
 
     var emoji: String {
         switch self {
+        case .me: return "⭐️"
         case .parent: return "👨‍👩‍👧"
         case .sibling: return "👫"
         case .child: return "🧒"
@@ -80,6 +84,7 @@ enum RelationshipTag: String, CaseIterable {
 
     var color: Color {
         switch self {
+        case .me: return .yellow
         case .parent: return .blue
         case .sibling: return .green
         case .child: return .orange
