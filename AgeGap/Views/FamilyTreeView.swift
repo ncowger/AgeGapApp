@@ -1,260 +1,334 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - Generation Definition
-
-private struct Generation {
-    let title: String
-    let tags: [String]
-    let isMyGeneration: Bool
-
-    static let all: [Generation] = [
-        Generation(title: "Grandparents",          tags: ["Grandparent"],                               isMyGeneration: false),
-        Generation(title: "Parents & Family",      tags: ["Parent", "Aunt/Uncle"],                      isMyGeneration: false),
-        Generation(title: "My Generation",         tags: ["Me", "Spouse/Partner", "Sibling", "Cousin"], isMyGeneration: true),
-        Generation(title: "Children's Generation", tags: ["Child", "Niece/Nephew"],                     isMyGeneration: false),
-        Generation(title: "Grandchildren",         tags: ["Grandchild"],                                isMyGeneration: false),
-    ]
-
-    static let friends = Generation(title: "Friends & Others", tags: ["Friend", "Other"], isMyGeneration: false)
-}
-
 // MARK: - Main View
 
 struct FamilyTreeView: View {
-    @Query(sort: \Person.birthday) private var people: [Person]
+    @Query(sort: \Person.name) private var people: [Person]
     @State private var selectedPerson: Person?
 
-    private func people(for generation: Generation) -> [Person] {
-        people.filter { generation.tags.contains($0.relationshipTag) }
-    }
+    // Zoom / pan state
+    @State private var scale:      CGFloat = 1.0
+    @State private var lastScale:  CGFloat = 1.0
+    @State private var offset:     CGSize  = .zero
+    @State private var lastOffset: CGSize  = .zero
 
-    private var activeGenerations: [Generation] {
-        Generation.all.filter { !people(for: $0).isEmpty }
-    }
+    private let minScale: CGFloat = 0.15
+    private let maxScale: CGFloat = 4.0
 
-    private var friendPeople: [Person] {
-        people(for: Generation.friends)
+    private var layout: TreeLayout {
+        TreeLayoutEngine(people: people).buildLayout()
     }
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
                 if people.isEmpty {
                     ContentUnavailableView(
                         "No People Yet",
                         systemImage: "figure.2.and.child.holdinghands",
                         description: Text("Add people in the People tab to build your family tree")
                     )
+                } else if people.first(where: { $0.relationshipTag == "Me" }) == nil {
+                    // No "Me" person yet — guide the user
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.crop.circle.badge.questionmark")
+                            .font(.system(size: 56))
+                            .foregroundStyle(.secondary)
+                        Text("Add yourself first")
+                            .font(.headline)
+                        Text("Tag one person as **Me** to anchor the family tree.\nEveryone else connects through you.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
                 } else {
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            ForEach(Array(activeGenerations.enumerated()), id: \.element.title) { index, generation in
-                                GenerationRow(
-                                    generation: generation,
-                                    people: people(for: generation),
-                                    isFirst: index == 0,
-                                    isLast: index == activeGenerations.count - 1,
-                                    onTap: { selectedPerson = $0 }
-                                )
-                            }
+                    // Zoomable + pannable tree canvas
+                    GeometryReader { geo in
+                        TreeCanvasView(layout: layout, onTap: { selectedPerson = $0 })
+                            .scaleEffect(scale, anchor: .center)
+                            .offset(offset)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .contentShape(Rectangle())
+                            .gesture(zoomAndPanGesture)
+                            .onTapGesture(count: 2) { resetView() }
+                    }
 
-                            // Friends & Others shown below a divider if present
-                            if !friendPeople.isEmpty {
-                                Divider()
-                                    .padding(.vertical, 16)
-                                    .padding(.horizontal, 32)
-
-                                GenerationRow(
-                                    generation: Generation.friends,
-                                    people: friendPeople,
-                                    isFirst: true,
-                                    isLast: true,
-                                    onTap: { selectedPerson = $0 }
-                                )
-                            }
+                    // Hint pill (bottom right)
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Label("Pinch to zoom  •  Double-tap to reset", systemImage: "hand.pinch")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.regularMaterial, in: Capsule())
+                                .padding(16)
                         }
-                        .padding(.vertical, 24)
                     }
                 }
             }
             .navigationTitle("Family Tree")
-            .sheet(item: $selectedPerson) { person in
-                PersonDetailSheet(person: person)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { resetView() } label: {
+                        Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                    }
+                    .disabled(people.isEmpty)
+                }
             }
+            .sheet(item: $selectedPerson) { PersonDetailSheet(person: $0) }
+        }
+    }
+
+    // MARK: - Gestures
+
+    private var zoomAndPanGesture: some Gesture {
+        SimultaneousGesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    let delta = value / lastScale
+                    lastScale = value
+                    scale = min(max(scale * delta, minScale), maxScale)
+                }
+                .onEnded { _ in lastScale = 1.0 },
+
+            DragGesture()
+                .onChanged { value in
+                    offset = CGSize(
+                        width:  lastOffset.width  + value.translation.width,
+                        height: lastOffset.height + value.translation.height
+                    )
+                }
+                .onEnded { _ in lastOffset = offset }
+        )
+    }
+
+    private func resetView() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            scale      = 1.0
+            lastScale  = 1.0
+            offset     = .zero
+            lastOffset = .zero
         }
     }
 }
 
-// MARK: - Generation Row
+// MARK: - Tree Canvas
 
-private struct GenerationRow: View {
-    let generation: Generation
-    let people: [Person]
-    let isFirst: Bool
-    let isLast: Bool
-    let onTap: (Person) -> Void
+struct TreeCanvasView: View {
+    let layout: TreeLayout
+    let onTap:  (Person) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Connector line coming down from above
-            if !isFirst {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.35))
-                    .frame(width: 2, height: 24)
-            }
+        ScrollView([.horizontal, .vertical], showsIndicators: false) {
+            ZStack(alignment: .topLeading) {
 
-            // Generation label
-            Text(generation.title.uppercased())
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundStyle(generation.isMyGeneration ? Color.blue : Color.secondary)
-                .tracking(1)
-                .padding(.bottom, 10)
-                .padding(.top, isFirst ? 0 : 6)
+                // ── Edge layer (Canvas) ──────────────────────────────────
+                Canvas { ctx, _ in
+                    for edge in layout.edges {
+                        switch edge.kind {
 
-            // Person cards row
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(people) { person in
-                        TreePersonCard(person: person, highlighted: generation.isMyGeneration)
-                            .onTapGesture { onTap(person) }
+                        case .spouseLink:
+                            // Short dashed horizontal line connecting spouses
+                            var path = Path()
+                            path.move(to: edge.from)
+                            path.addLine(to: edge.to)
+                            ctx.stroke(
+                                path,
+                                with: .color(.secondary.opacity(0.55)),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])
+                            )
+
+                        case .parentChild:
+                            // S-curve bezier from parent midpoint down to child
+                            var path = Path()
+                            path.move(to: edge.from)
+                            let midY = (edge.from.y + edge.to.y) / 2
+                            path.addCurve(
+                                to: edge.to,
+                                control1: CGPoint(x: edge.from.x, y: midY),
+                                control2: CGPoint(x: edge.to.x,   y: midY)
+                            )
+                            ctx.stroke(
+                                path,
+                                with: .color(.secondary.opacity(0.45)),
+                                style: StrokeStyle(lineWidth: 1.5)
+                            )
+                        }
                     }
                 }
-                .padding(.horizontal, 24)
-            }
+                .frame(width: layout.size.width, height: layout.size.height)
 
-            // Connector line going down to next row
-            if !isLast {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.35))
-                    .frame(width: 2, height: 24)
+                // ── Node layer ───────────────────────────────────────────
+                ForEach(layout.people) { pp in
+                    TreePersonNode(person: pp.person)
+                        .frame(width: TreeLayoutEngine.nodeW, height: TreeLayoutEngine.nodeH)
+                        .position(pp.position)
+                        .onTapGesture { onTap(pp.person) }
+                }
+
+                // ── Unlinked people strip ────────────────────────────────
+                if !layout.unlinked.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Not yet linked to tree", systemImage: "link.badge.plus")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                ForEach(layout.unlinked) { person in
+                                    TreePersonNode(person: person)
+                                        .frame(width: TreeLayoutEngine.nodeW,
+                                               height: TreeLayoutEngine.nodeH)
+                                        .onTapGesture { onTap(person) }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                    }
+                    .padding(14)
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal, TreeLayoutEngine.padding)
+                    .offset(y: layout.size.height + 16)
+                }
             }
+            .frame(
+                width:  layout.size.width,
+                height: layout.size.height + (layout.unlinked.isEmpty ? 0 : 140)
+            )
         }
     }
 }
 
-// MARK: - Tree Person Card
+// MARK: - Person Node
 
-private struct TreePersonCard: View {
+struct TreePersonNode: View {
     let person: Person
-    let highlighted: Bool
 
-    var isMe: Bool { person.relationshipTag == "Me" }
+    private var isMe:     Bool    { person.relationshipTag == "Me" }
+    private var nodeSize: CGFloat { isMe ? 60 : 52 }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             // Avatar
             ZStack {
                 if let data = person.photoData, let img = UIImage(data: data) {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: avatarSize, height: avatarSize)
+                        .frame(width: nodeSize, height: nodeSize)
                         .clipShape(Circle())
                 } else {
                     Circle()
                         .fill(colorForRelationship(person.relationshipTag))
-                        .frame(width: avatarSize, height: avatarSize)
+                        .frame(width: nodeSize, height: nodeSize)
                         .overlay(
                             Text(person.name.prefix(2).uppercased())
-                                .font(isMe ? .headline : .subheadline)
-                                .fontWeight(.bold)
+                                .font(.system(size: isMe ? 18 : 14, weight: .bold))
                                 .foregroundStyle(.white)
                         )
                 }
 
-                // Star badge for "Me"
+                // ⭐️ badge for Me
                 if isMe {
                     VStack {
                         HStack {
                             Spacer()
                             Text("⭐️")
-                                .font(.caption2)
+                                .font(.system(size: 10))
                                 .offset(x: 4, y: -4)
                         }
                         Spacer()
                     }
-                    .frame(width: avatarSize, height: avatarSize)
+                    .frame(width: nodeSize, height: nodeSize)
                 }
             }
             .overlay(
-                Circle().stroke(
-                    isMe ? Color.blue : (highlighted ? Color.blue.opacity(0.4) : Color.clear),
-                    lineWidth: isMe ? 3 : 1.5
-                )
+                Circle()
+                    .stroke(isMe ? Color.blue : Color(.systemBackground), lineWidth: isMe ? 3 : 2)
+                    .frame(width: nodeSize, height: nodeSize)
             )
-            .shadow(color: .black.opacity(0.1), radius: isMe ? 6 : 3)
+            .shadow(color: .black.opacity(isMe ? 0.2 : 0.1), radius: isMe ? 6 : 3)
 
-            // Name
+            // First name
             Text(person.name.components(separatedBy: " ").first ?? person.name)
-                .font(isMe ? .caption : .caption2)
-                .fontWeight(isMe ? .bold : .regular)
+                .font(.system(size: isMe ? 11 : 10, weight: isMe ? .bold : .medium))
                 .foregroundStyle(isMe ? .blue : .primary)
                 .lineLimit(1)
 
             // Age
             Text("Age \(person.age)")
-                .font(.caption2)
+                .font(.system(size: 9))
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 72)
     }
-
-    private var avatarSize: CGFloat { isMe ? 64 : 52 }
 }
 
 // MARK: - Person Detail Sheet
 
-private struct PersonDetailSheet: View {
+struct PersonDetailSheet: View {
     let person: Person
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                // Avatar
-                Group {
-                    if let data = person.photoData, let img = UIImage(data: data) {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Circle()
-                            .fill(colorForRelationship(person.relationshipTag))
-                            .overlay(
-                                Text(person.name.prefix(2).uppercased())
-                                    .font(.largeTitle).bold()
-                                    .foregroundStyle(.white)
-                            )
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Avatar
+                    Group {
+                        if let data = person.photoData, let img = UIImage(data: data) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Circle()
+                                .fill(colorForRelationship(person.relationshipTag))
+                                .overlay(
+                                    Text(person.name.prefix(2).uppercased())
+                                        .font(.largeTitle).bold()
+                                        .foregroundStyle(.white)
+                                )
+                        }
                     }
-                }
-                .frame(width: 100, height: 100)
-                .clipShape(Circle())
-                .shadow(radius: 6)
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+                    .shadow(radius: 6)
 
-                VStack(spacing: 6) {
-                    Text(person.name)
-                        .font(.title2).bold()
-                    Text("\(person.relationshipTag)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 5)
-                        .background(colorForRelationship(person.relationshipTag).opacity(0.15))
-                        .clipShape(Capsule())
-                }
+                    VStack(spacing: 6) {
+                        Text(person.name)
+                            .font(.title2).bold()
+                        Text(person.relationshipTag)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 5)
+                            .background(colorForRelationship(person.relationshipTag).opacity(0.15))
+                            .clipShape(Capsule())
+                        if !person.notes.isEmpty {
+                            Text(person.notes)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
 
-                VStack(spacing: 12) {
-                    DetailRow(label: "Birthday", value: person.birthday.formatted(date: .long, time: .omitted))
-                    DetailRow(label: "Age", value: "\(person.age) years old")
-                    DetailRow(label: "Next Birthday", value: "in \(person.daysUntilBirthday) days")
-                }
-                .padding(.horizontal, 32)
+                    VStack(spacing: 0) {
+                        DetailInfoRow(label: "Birthday",
+                                      value: person.birthday.formatted(date: .long, time: .omitted))
+                        DetailInfoRow(label: "Age",
+                                      value: "\(person.age) years old")
+                        DetailInfoRow(label: "Next Birthday",
+                                      value: "in \(person.daysUntilBirthday) days")
+                    }
+                    .padding(.horizontal, 24)
 
-                Spacer()
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, 32)
             }
-            .padding(.top, 32)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -265,21 +339,17 @@ private struct PersonDetailSheet: View {
     }
 }
 
-private struct DetailRow: View {
+private struct DetailInfoRow: View {
     let label: String
     let value: String
 
     var body: some View {
         HStack {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Text(label).font(.subheadline).foregroundStyle(.secondary)
             Spacer()
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.medium)
+            Text(value).font(.subheadline).fontWeight(.medium)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .overlay(Divider(), alignment: .bottom)
     }
 }

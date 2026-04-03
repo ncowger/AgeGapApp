@@ -165,13 +165,13 @@ struct TimelineContent: View {
                 .onTapGesture { handleTap(person) }
 
                 if index < sorted.count - 1 {
-                    let gap = yearGap(from: person, to: sorted[index + 1])
+                    let gapText = preciseGap(from: person.birthday, to: sorted[index + 1].birthday)
                     HStack(spacing: 16) {
                         Spacer().frame(width: 44)
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 2, height: 10)
-                        Text(gap == 0 ? "< 1y apart" : "\(gap)y gap")
+                        Text(gapText)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 7)
@@ -183,6 +183,20 @@ struct TimelineContent: View {
                 }
             }
         }
+    }
+
+    private func preciseGap(from d1: Date, to d2: Date) -> String {
+        let earlier = min(d1, d2)
+        let later   = max(d1, d2)
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: earlier, to: later)
+        let y = c.year  ?? 0
+        let m = c.month ?? 0
+        let d = c.day   ?? 0
+        if y == 0 && m == 0 && d == 0 { return "Same day" }
+        if y == 0 && m == 0 { return "\(d)d gap" }
+        if y == 0 { return m == 1 ? "1 mo gap" : "\(m) mo gap" }
+        if m == 0 { return y == 1 ? "1 yr gap" : "\(y) yr gap" }
+        return "\(y)y \(m)mo gap"
     }
 
     private func handleTap(_ person: Person) {
