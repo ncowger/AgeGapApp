@@ -1,35 +1,65 @@
 # AgeGap
 
-An iPhone app for tracking birthdays across your extended family and friend group — with a visual timeline, age gap analysis, family tree, and birthday reminders.
+An iPhone app for tracking birthdays across your extended family and friend group — with a visual timeline, age gap analysis, a structured family tree, and birthday reminders.
+
+Built with SwiftUI + SwiftData (iOS 17+), designed to support iCloud sync across devices when ready.
+
+---
+
+## Screenshots
+
+> _Run the app in the Xcode simulator to explore all views._
 
 ---
 
 ## Features
 
 ### People
-Add anyone with a name, birthday, photo, and relationship tag. Filter and search the list by tag. Swipe to delete.
+Add anyone with a name, birthday, optional photo, and a relationship tag. Assign a **Spouse/Partner** or **Parent** link to build the family tree automatically. Swipe to delete; tap to edit.
 
-**Relationship tags:** Me, Parent, Sibling, Child, Cousin, Grandparent, Grandchild, Aunt/Uncle, Niece/Nephew, Friend, Spouse/Partner, Other
+**Relationship tags:**
+`Me` · `Parent` · `Sibling` · `Child` · `Cousin` · `Grandparent` · `Grandchild` · `Aunt/Uncle` · `Niece/Nephew` · `Spouse/Partner` · `Friend` · `In-Law` · `Step-Family` · `Other`
+
+---
 
 ### Timeline
-A chronological timeline of everyone sorted by birth year. Tap any two people to instantly see the exact age gap between them — down to years and months. Gap badges between consecutive entries show spacing at a glance.
+A chronological list of everyone sorted by birth year. Two levels of gap info:
+
+- **Between consecutive entries** — compact gap badges ("2y 4mo", "3 mo", "18d") always visible as you scroll
+- **Tap-to-compare** — tap any two people to reveal a detail card showing the exact gap in **years, months, and days** (e.g. "2y 4mo 11d apart")
+
+---
 
 ### Family Tree
-A visual generational tree grouping people by relationship:
-- Grandparents
-- Parents & Family (Parents, Aunts/Uncles)
-- My Generation (Me, Spouse/Partner, Siblings, Cousins)
-- Children's Generation (Children, Nieces/Nephews)
-- Grandchildren
-- Friends & Others (shown separately below the family tree)
+A structured generational tree built from **spouse** and **parent** relationships you define on each person:
 
-Tap any person to see their detail card. The "Me" entry is highlighted as the anchor of the tree.
+- BFS layout engine assigns each person a generation number anchored at **Me**
+- Spouses sit side-by-side within a family unit, connected by a dashed line
+- Parent → child edges drawn as smooth Bézier curves
+- People with no tree links shown in a separate strip below the tree
+- **Pinch to zoom** (0.15× – 4×) and **drag to pan** simultaneously
+- Tap any node for a birthday/age detail sheet
+- Double-tap or toolbar button to reset zoom/position
+
+> For best results, set one person's tag to **Me** — they anchor the tree at the center generation.
+
+---
 
 ### Age Gaps
-All pairwise age gap comparisons across your group. Toggle between closest-first and furthest-first. Filter to a specific relationship group (e.g. "show only cousins"). Stats banner shows total people, closest gap, and biggest gap at a glance.
+Three analysis modes via a segmented picker:
+
+| Mode | What it shows |
+|---|---|
+| **vs Me** | Everyone compared against the "Me" person, with older/younger direction labels |
+| **By Group** | Per-tag sections with a closest/furthest summary card + full pair list |
+| **All Pairs** | Every pairwise combination, sortable by gap size |
+
+Notes added to a person appear inline on every pair row they appear in.
+
+---
 
 ### Birthdays
-Upcoming birthdays sorted by days remaining. Today's birthdays are broken out at the top. Annual birthday reminders via local notifications at 9am on each person's birthday.
+Upcoming birthdays sorted by days remaining. Today's birthdays are called out at the top. Annual **local notifications** fire at 9 am on each person's birthday — permission requested on first launch.
 
 ---
 
@@ -39,23 +69,25 @@ Upcoming birthdays sorted by days remaining. Today's birthdays are broken out at
 |---|---|
 | Language | Swift 5.9+ |
 | UI | SwiftUI |
-| Persistence | SwiftData |
-| Sync (future) | CloudKit |
-| Notifications | UserNotifications |
+| Persistence | SwiftData (`@Model`) |
+| Sync (ready, not active) | CloudKit |
+| Notifications | `UNUserNotificationCenter` |
 | Minimum iOS | 17.0 |
 
 ---
 
 ## iCloud Sync
 
-The app is architected to support iCloud sync with a single configuration change. Data currently persists locally on each device.
+The app is wired for CloudKit — all `@Model` properties have default values (required for CloudKit compatibility) and the app entry point attempts a `cloudKitDatabase: .automatic` container first, falling back to local storage silently.
 
-**To activate sync (requires Apple Developer Program — $99/yr):**
-1. In Xcode: **Target → Signing & Capabilities → + Capability → iCloud**
-2. Check **CloudKit**
-3. Build and run — no code changes needed
+**To activate sync (requires Apple Developer Program membership — $99/yr):**
 
-The `AgeGap.entitlements` file and CloudKit `ModelConfiguration` are already in place.
+1. Open the project in Xcode
+2. Select the **AgeGap** target → **Signing & Capabilities**
+3. Click **+ Capability** → **iCloud**, then check **CloudKit**
+4. Build and run — no code changes needed
+
+`AgeGap.entitlements` and the CloudKit `ModelConfiguration` are already committed and ready.
 
 ---
 
@@ -63,44 +95,57 @@ The `AgeGap.entitlements` file and CloudKit `ModelConfiguration` are already in 
 
 ```
 AgeGap/
-├── AgeGapApp.swift          # App entry point, ModelContainer setup with CloudKit fallback
-├── ContentView.swift        # Tab bar (People, Timeline, Tree, Age Gaps, Birthdays)
+├── AgeGapApp.swift               # App entry point; CloudKit-first ModelContainer w/ local fallback
+├── ContentView.swift             # 5-tab bar: People · Timeline · Tree · Age Gaps · Birthdays
+├── AgeGap.entitlements           # iCloud/CloudKit declarations (inert until capability enabled)
 │
 ├── Models/
-│   └── Person.swift         # SwiftData model + RelationshipTag enum
-│
-├── Views/
-│   ├── PeopleListView.swift          # People list with search and tag filter
-│   ├── AddEditPersonView.swift       # Add/edit sheet with photo picker
-│   ├── BirthdayTimelineView.swift    # Chronological timeline with tap-to-compare
-│   ├── FamilyTreeView.swift          # Generational tree view
-│   ├── AgeGapAnalysisView.swift      # All pairwise gap comparisons
-│   └── UpcomingBirthdaysView.swift   # Birthday countdown list
+│   └── Person.swift              # SwiftData model, RelationshipTag enum, computed date helpers
 │
 ├── Managers/
-│   └── NotificationManager.swift    # Local notification scheduling
+│   ├── NotificationManager.swift # Annual birthday notification scheduling
+│   └── TreeLayoutEngine.swift    # BFS generation layout → PositionedPerson / TreeEdge / TreeLayout
 │
-├── Assets.xcassets/
-└── AgeGap.entitlements      # iCloud/CloudKit declarations (ready, not yet active)
+└── Views/
+    ├── PeopleListView.swift           # Searchable people list with tag filter chips
+    ├── AddEditPersonView.swift        # Add/edit form: photo, tag, spouse picker, parent picker, notes
+    ├── BirthdayTimelineView.swift     # Chronological timeline with inline gaps + tap-to-compare card
+    ├── FamilyTreeView.swift           # Pinch-to-zoom/pan canvas tree with Bézier edges
+    ├── AgeGapAnalysisView.swift       # vs-Me · By Group · All Pairs gap analysis
+    └── UpcomingBirthdaysView.swift    # Birthday countdown with today's birthdays highlighted
 ```
 
 ---
 
 ## Getting Started
 
-1. Install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) (free, requires macOS)
-2. Clone the repo
-3. Open `AgeGap.xcodeproj`
-4. Select an iPhone simulator or your device
-5. Set your Team in **Signing & Capabilities** (a free Apple ID works for simulator and personal device)
+1. Install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) (free, requires macOS 14+)
+2. Clone this repo:
+   ```bash
+   git clone https://github.com/ncowger/AgeGapApp.git
+   cd AgeGapApp
+   ```
+3. Open `AgeGap.xcodeproj` in Xcode
+4. Select the **AgeGap** target → **Signing & Capabilities** → set your Team (a free Apple ID works for simulator + personal device)
+5. Choose an iPhone simulator (iOS 17+) or your device
 6. Press **⌘R**
+
+---
+
+## Tips
+
+- **Set a "Me" person first** — the family tree and "vs Me" gap analysis both anchor to whoever has the `Me` tag.
+- **Link spouses and parents in the edit sheet** — the tree is built from these structural links, not just tags.
+- **Spouse links are bidirectional** — setting Person A's spouse to Person B automatically sets B's spouse to A.
+- **Dark Mode** works throughout; toggle it in the iOS simulator via **Settings → Developer → Dark Appearance** or device Settings.
 
 ---
 
 ## Roadmap
 
 - [ ] iCloud sync across devices (requires Apple Developer account)
-- [ ] CloudKit family sharing (invite family members to share a pool of data)
-- [ ] Dynamic/custom relationship tags
+- [ ] CloudKit family sharing (invite family members to a shared pool)
 - [ ] Import from Contacts
-- [ ] App icon
+- [ ] Export / share as PDF or image
+- [ ] Custom relationship tags
+- [ ] App icon + App Store listing
