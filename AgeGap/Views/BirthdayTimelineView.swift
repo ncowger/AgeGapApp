@@ -4,6 +4,7 @@ import SwiftData
 struct BirthdayTimelineView: View {
     @Query(sort: \Person.birthday) private var people: [Person]
     @State private var selectedTag = "All"
+    @State private var selectedPeople: [Person] = []
 
     var allTags: [String] {
         ["All"] + RelationshipTag.allCases.map(\.rawValue)
@@ -19,9 +20,12 @@ struct BirthdayTimelineView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { selectedTag = tag }
-                                .buttonStyle(.bordered)
-                                .tint(selectedTag == tag ? .blue : .gray)
+                            Button(tag) {
+                                selectedTag = tag
+                                selectedPeople = []
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(selectedTag == tag ? .blue : .gray)
                         }
                     }
                     .padding(.horizontal)
@@ -35,51 +39,109 @@ struct BirthdayTimelineView: View {
                         description: Text("Add people to see the timeline")
                     )
                 } else {
-                    ScrollView {
-                        TimelineContent(people: filteredPeople)
+                    ZStack(alignment: .bottom) {
+                        ScrollView {
+                            TimelineContent(
+                                people: filteredPeople,
+                                selectedPeople: $selectedPeople
+                            )
                             .padding()
+                            .padding(.bottom, selectedPeople.count == 2 ? 130 : 0)
+                        }
+
+                        if selectedPeople.count == 2 {
+                            GapComparisonCard(
+                                person1: selectedPeople[0],
+                                person2: selectedPeople[1],
+                                onDismiss: { selectedPeople = [] }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
+                    .animation(.spring(response: 0.35), value: selectedPeople.count)
                 }
             }
             .navigationTitle("Timeline")
+            .toolbar {
+                if !selectedPeople.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Clear") { selectedPeople = [] }
+                            .font(.subheadline)
+                    }
+                }
+            }
         }
     }
 }
 
+// MARK: - Timeline Content
+
 struct TimelineContent: View {
     let people: [Person]
+    @Binding var selectedPeople: [Person]
 
     var sorted: [Person] { people.sorted { $0.birthday < $1.birthday } }
 
     var body: some View {
         VStack(spacing: 0) {
+            if selectedPeople.isEmpty {
+                Text("Tap two people to compare their age gap")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 12)
+            } else if selectedPeople.count == 1 {
+                Text("Now tap a second person")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                    .padding(.bottom, 12)
+            }
+
             ForEach(Array(sorted.enumerated()), id: \.element.id) { index, person in
+                let isSelected = selectedPeople.contains { $0.id == person.id }
+                let selectionIndex = selectedPeople.firstIndex { $0.id == person.id }
+
                 HStack(alignment: .center, spacing: 16) {
-                    // Year label
                     Text(String(Calendar.current.component(.year, from: person.birthday)))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isSelected ? .blue : .secondary)
                         .monospacedDigit()
+                        .fontWeight(isSelected ? .bold : .regular)
                         .frame(width: 44, alignment: .trailing)
 
-                    // Line + dot
                     VStack(spacing: 0) {
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 2, height: index == 0 ? 16 : 28)
-                        Circle()
-                            .fill(colorForRelationship(person.relationshipTag))
-                            .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                            .shadow(radius: 2)
+
+                        ZStack {
+                            Circle()
+                                .fill(colorForRelationship(person.relationshipTag))
+                                .frame(width: isSelected ? 22 : 14, height: isSelected ? 22 : 14)
+                                .overlay(
+                                    Circle().stroke(
+                                        isSelected ? Color.blue : Color(.systemBackground),
+                                        lineWidth: isSelected ? 3 : 2
+                                    )
+                                )
+                                .shadow(radius: isSelected ? 4 : 2)
+
+                            if let idx = selectionIndex {
+                                Text("\(idx + 1)")
+                                    .font(.system(size: 9, weight: .black))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .animation(.spring(response: 0.25), value: isSelected)
+
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 2, height: index == sorted.count - 1 ? 16 : 28)
                     }
 
-                    // Info
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(person.name).font(.subheadline).bold()
+                        Text(person.name)
+                            .font(.subheadline).bold()
+                            .foregroundStyle(isSelected ? .blue : .primary)
                         HStack(spacing: 4) {
                             Text(person.relationshipTag)
                             Text("• Age \(person.age)")
@@ -92,9 +154,16 @@ struct TimelineContent: View {
                     }
 
                     Spacer()
-                }
 
-                // Gap badge between consecutive entries
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                            .font(.title3)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { handleTap(person) }
+
                 if index < sorted.count - 1 {
                     let gap = yearGap(from: person, to: sorted[index + 1])
                     HStack(spacing: 16) {
@@ -116,8 +185,83 @@ struct TimelineContent: View {
         }
     }
 
+    private func handleTap(_ person: Person) {
+        if let idx = selectedPeople.firstIndex(where: { $0.id == person.id }) {
+            selectedPeople.remove(at: idx)
+        } else if selectedPeople.count < 2 {
+            selectedPeople.append(person)
+        } else {
+            selectedPeople = [selectedPeople[1], person]
+        }
+    }
+
     private func yearGap(from p1: Person, to p2: Person) -> Int {
         let c = Calendar.current
         return abs(c.component(.year, from: p1.birthday) - c.component(.year, from: p2.birthday))
+    }
+}
+
+// MARK: - Gap Comparison Card
+
+struct GapComparisonCard: View {
+    let person1: Person
+    let person2: Person
+    let onDismiss: () -> Void
+
+    private var older:   Person { person1.birthday <= person2.birthday ? person1 : person2 }
+    private var younger: Person { person1.birthday <= person2.birthday ? person2 : person1 }
+
+    private var gapDescription: String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: older.birthday, to: younger.birthday)
+        let y = c.year ?? 0
+        let m = c.month ?? 0
+        let d = c.day ?? 0
+        if y == 0 && m == 0 && d == 0 { return "Same birthday!" }
+        if y == 0 && m == 0 { return "\(d) day\(d == 1 ? "" : "s") apart" }
+        if y == 0 { return "\(m) month\(m == 1 ? "" : "s") apart" }
+        if m == 0 { return "\(y) year\(y == 1 ? "" : "s") apart" }
+        return "\(y)y \(m)mo apart"
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Age Gap")
+                    .font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+                Spacer()
+                Button { onDismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary).font(.title3)
+                }
+            }
+
+            Text(gapDescription)
+                .font(.title2).bold().foregroundStyle(.blue)
+
+            HStack(spacing: 0) {
+                personChip(older,   label: "older")
+                Image(systemName: "arrow.right")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8)
+                personChip(younger, label: "younger")
+            }
+        }
+        .padding(16)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.15), radius: 12, y: -4)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private func personChip(_ person: Person, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(person.name).font(.subheadline).bold()
+            Text("Age \(person.age)").font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.caption2).foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(colorForRelationship(person.relationshipTag).opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
