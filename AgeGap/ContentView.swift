@@ -11,6 +11,10 @@ struct ContentView: View {
                 .tabItem {
                     Label("Timeline", systemImage: "calendar")
                 }
+            FamilyTreeView()
+                .tabItem {
+                    Label("Tree", systemImage: "tree")
+                }
             AgeGapAnalysisView()
                 .tabItem {
                     Label("Age Gaps", systemImage: "arrow.left.and.right")
