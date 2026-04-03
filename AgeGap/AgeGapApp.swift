@@ -17,12 +17,14 @@ struct AgeGapApp: App {
         // ─────────────────────────────────────────────────────────────────────────
         do {
             let cloudConfig = ModelConfiguration(cloudKitDatabase: .automatic)
-            container = try ModelContainer(for: Person.self, configurations: cloudConfig)
+            container = try ModelContainer(for: Person.self, Tag.self, configurations: cloudConfig)
         } catch {
             // CloudKit not available yet — running in local-only mode
             let localConfig = ModelConfiguration(isStoredInMemoryOnly: false)
-            container = try! ModelContainer(for: Person.self, configurations: localConfig)
+            container = try! ModelContainer(for: Person.self, Tag.self, configurations: localConfig)
         }
+
+        seedBuiltInTagsIfNeeded(in: container.mainContext)
     }
 
     var body: some Scene {
@@ -30,5 +32,21 @@ struct AgeGapApp: App {
             ContentView()
         }
         .modelContainer(container)
+    }
+
+    // Inserts the built-in tags on first launch (or if they were wiped).
+    private func seedBuiltInTagsIfNeeded(in context: ModelContext) {
+        let existing = (try? context.fetchCount(FetchDescriptor<Tag>())) ?? 0
+        guard existing == 0 else { return }
+
+        for (index, spec) in Tag.builtIns.enumerated() {
+            context.insert(Tag(
+                name: spec.name,
+                emoji: spec.emoji,
+                colorName: spec.colorName,
+                isBuiltIn: true,
+                sortOrder: index
+            ))
+        }
     }
 }
