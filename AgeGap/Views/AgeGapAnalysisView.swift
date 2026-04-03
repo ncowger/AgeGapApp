@@ -32,11 +32,12 @@ struct AgePair: Identifiable {
 
 struct AgeGapAnalysisView: View {
     @Query(sort: \Person.birthday) private var people: [Person]
+    @Query(sort: \Tag.sortOrder) private var tags: [Tag]
     @State private var selectedTag = "All"
     @State private var showClosest = true
 
-    var allTags: [String] {
-        ["All"] + RelationshipTag.allCases.map(\.rawValue)
+    var allTagNames: [String] {
+        ["All"] + tags.map(\.name)
     }
 
     var filteredPeople: [Person] {
@@ -59,10 +60,18 @@ struct AgeGapAnalysisView: View {
             VStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { selectedTag = tag }
-                                .buttonStyle(.bordered)
-                                .tint(selectedTag == tag ? .blue : .gray)
+                        ForEach(allTagNames, id: \.self) { tagName in
+                            Button {
+                                selectedTag = tagName
+                            } label: {
+                                if tagName == "All" {
+                                    Text("All")
+                                } else {
+                                    Text("\(tags.emoji(for: tagName)) \(tagName)")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(selectedTag == tagName ? .blue : .gray)
                         }
                     }
                     .padding(.horizontal)
@@ -95,7 +104,7 @@ struct AgeGapAnalysisView: View {
                     )
                 } else {
                     List(pairs) { pair in
-                        AgePairRow(pair: pair)
+                        AgePairRow(pair: pair, tags: tags)
                     }
                 }
             }
@@ -127,6 +136,7 @@ struct GapStatCard: View {
 
 struct AgePairRow: View {
     let pair: AgePair
+    let tags: [Tag]
 
     var body: some View {
         HStack(spacing: 12) {
@@ -151,7 +161,7 @@ struct AgePairRow: View {
     private func personLine(_ person: Person, label: String) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(colorForRelationship(person.relationshipTag))
+                .fill(tags.color(for: person.relationshipTag))
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 0) {
                 Text(person.name).font(.subheadline).bold()

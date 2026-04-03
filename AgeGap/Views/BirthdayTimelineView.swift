@@ -3,10 +3,11 @@ import SwiftData
 
 struct BirthdayTimelineView: View {
     @Query(sort: \Person.birthday) private var people: [Person]
+    @Query(sort: \Tag.sortOrder) private var tags: [Tag]
     @State private var selectedTag = "All"
 
-    var allTags: [String] {
-        ["All"] + RelationshipTag.allCases.map(\.rawValue)
+    var allTagNames: [String] {
+        ["All"] + tags.map(\.name)
     }
 
     var filteredPeople: [Person] {
@@ -18,10 +19,18 @@ struct BirthdayTimelineView: View {
             VStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { selectedTag = tag }
-                                .buttonStyle(.bordered)
-                                .tint(selectedTag == tag ? .blue : .gray)
+                        ForEach(allTagNames, id: \.self) { tagName in
+                            Button {
+                                selectedTag = tagName
+                            } label: {
+                                if tagName == "All" {
+                                    Text("All")
+                                } else {
+                                    Text("\(tags.emoji(for: tagName)) \(tagName)")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(selectedTag == tagName ? .blue : .gray)
                         }
                     }
                     .padding(.horizontal)
@@ -36,7 +45,7 @@ struct BirthdayTimelineView: View {
                     )
                 } else {
                     ScrollView {
-                        TimelineContent(people: filteredPeople)
+                        TimelineContent(people: filteredPeople, tags: tags)
                             .padding()
                     }
                 }
@@ -48,6 +57,7 @@ struct BirthdayTimelineView: View {
 
 struct TimelineContent: View {
     let people: [Person]
+    let tags: [Tag]
 
     var sorted: [Person] { people.sorted { $0.birthday < $1.birthday } }
 
@@ -68,7 +78,7 @@ struct TimelineContent: View {
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 2, height: index == 0 ? 16 : 28)
                         Circle()
-                            .fill(colorForRelationship(person.relationshipTag))
+                            .fill(tags.color(for: person.relationshipTag))
                             .frame(width: 14, height: 14)
                             .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                             .shadow(radius: 2)

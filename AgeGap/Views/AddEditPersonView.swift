@@ -5,12 +5,13 @@ import PhotosUI
 struct AddEditPersonView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Tag.sortOrder) private var tags: [Tag]
 
     var person: Person?
 
     @State private var name = ""
     @State private var birthday = Date()
-    @State private var relationshipTag = RelationshipTag.friend.rawValue
+    @State private var relationshipTag = "Friend"
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var scheduleReminder = true
@@ -57,8 +58,8 @@ struct AddEditPersonView: View {
 
                 Section("Relationship") {
                     Picker("Tag", selection: $relationshipTag) {
-                        ForEach(RelationshipTag.allCases, id: \.rawValue) { tag in
-                            Text("\(tag.emoji) \(tag.rawValue)").tag(tag.rawValue)
+                        ForEach(tags) { tag in
+                            Text("\(tag.emoji) \(tag.name)").tag(tag.name)
                         }
                     }
                     .pickerStyle(.menu)
@@ -88,10 +89,10 @@ struct AddEditPersonView: View {
             }
             .onAppear {
                 if let person {
-                    name = person.name
-                    birthday = person.birthday
+                    name            = person.name
+                    birthday        = person.birthday
                     relationshipTag = person.relationshipTag
-                    photoData = person.photoData
+                    photoData       = person.photoData
                 }
             }
         }
@@ -101,10 +102,10 @@ struct AddEditPersonView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         if let person {
             NotificationManager.shared.cancelNotification(for: person)
-            person.name = trimmedName
-            person.birthday = birthday
+            person.name            = trimmedName
+            person.birthday        = birthday
             person.relationshipTag = relationshipTag
-            person.photoData = photoData
+            person.photoData       = photoData
             if scheduleReminder {
                 NotificationManager.shared.scheduleNotification(for: person)
             }

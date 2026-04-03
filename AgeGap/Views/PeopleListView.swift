@@ -4,13 +4,15 @@ import SwiftData
 struct PeopleListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Person.name) private var people: [Person]
+    @Query(sort: \Tag.sortOrder) private var tags: [Tag]
     @State private var showingAddPerson = false
     @State private var selectedPerson: Person?
     @State private var searchText = ""
     @State private var selectedTag = "All"
+    @State private var showingTagManager = false
 
-    var allTags: [String] {
-        ["All"] + RelationshipTag.allCases.map(\.rawValue)
+    var allTagNames: [String] {
+        ["All"] + tags.map(\.name)
     }
 
     var filteredPeople: [Person] {
@@ -26,10 +28,18 @@ struct PeopleListView: View {
             VStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { selectedTag = tag }
-                                .buttonStyle(.bordered)
-                                .tint(selectedTag == tag ? .blue : .gray)
+                        ForEach(allTagNames, id: \.self) { tagName in
+                            Button {
+                                selectedTag = tagName
+                            } label: {
+                                if tagName == "All" {
+                                    Text("All")
+                                } else {
+                                    Text("\(tags.emoji(for: tagName)) \(tagName)")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(selectedTag == tagName ? .blue : .gray)
                         }
                     }
                     .padding(.horizontal)
@@ -38,7 +48,7 @@ struct PeopleListView: View {
 
                 List {
                     ForEach(filteredPeople) { person in
-                        PersonRowView(person: person)
+                        PersonRowView(person: person, tags: tags)
                             .contentShape(Rectangle())
                             .onTapGesture { selectedPerson = person }
                     }
@@ -53,12 +63,20 @@ struct PeopleListView: View {
                         Image(systemName: "plus")
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showingTagManager = true } label: {
+                        Label("Tags", systemImage: "tag")
+                    }
+                }
             }
             .sheet(isPresented: $showingAddPerson) {
                 AddEditPersonView()
             }
             .sheet(item: $selectedPerson) { person in
                 AddEditPersonView(person: person)
+            }
+            .sheet(isPresented: $showingTagManager) {
+                TagManagementView()
             }
         }
     }
@@ -74,6 +92,7 @@ struct PeopleListView: View {
 
 struct PersonRowView: View {
     let person: Person
+    let tags: [Tag]
 
     var body: some View {
         HStack(spacing: 12) {
@@ -106,7 +125,7 @@ struct PersonRowView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(colorForRelationship(person.relationshipTag))
+                    .background(tags.color(for: person.relationshipTag))
             }
         }
         .frame(width: 48, height: 48)

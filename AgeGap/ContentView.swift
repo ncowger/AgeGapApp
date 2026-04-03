@@ -7,6 +7,10 @@ struct ContentView: View {
                 .tabItem {
                     Label("People", systemImage: "person.3")
                 }
+            FamilyTreeView()
+                .tabItem {
+                    Label("Tree", systemImage: "tree")
+                }
             BirthdayTimelineView()
                 .tabItem {
                     Label("Timeline", systemImage: "calendar")

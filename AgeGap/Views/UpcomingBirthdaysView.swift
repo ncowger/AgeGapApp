@@ -4,6 +4,7 @@ import UserNotifications
 
 struct UpcomingBirthdaysView: View {
     @Query(sort: \Person.name) private var people: [Person]
+    @Query(sort: \Tag.sortOrder) private var tags: [Tag]
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
 
     var todayBirthdays: [Person] {
@@ -34,7 +35,7 @@ struct UpcomingBirthdaysView: View {
                     if !todayBirthdays.isEmpty {
                         Section("Today 🎂") {
                             ForEach(todayBirthdays) { person in
-                                BirthdayRow(person: person)
+                                BirthdayRow(person: person, tags: tags)
                             }
                         }
                     }
@@ -46,7 +47,7 @@ struct UpcomingBirthdaysView: View {
                                 .font(.subheadline)
                         } else {
                             ForEach(upcomingBirthdays) { person in
-                                BirthdayRow(person: person)
+                                BirthdayRow(person: person, tags: tags)
                             }
                         }
                     }
@@ -78,6 +79,7 @@ struct UpcomingBirthdaysView: View {
 
 struct BirthdayRow: View {
     let person: Person
+    let tags: [Tag]
 
     var turningAge: Int {
         person.isBirthdayToday ? person.age : person.age + 1
@@ -115,7 +117,7 @@ struct BirthdayRow: View {
                 Text(person.name.prefix(2).uppercased())
                     .font(.subheadline).foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(person.isBirthdayToday ? Color.orange : colorForRelationship(person.relationshipTag))
+                    .background(person.isBirthdayToday ? Color.orange : tags.color(for: person.relationshipTag))
             }
         }
         .frame(width: 44, height: 44)
