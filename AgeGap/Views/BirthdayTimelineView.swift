@@ -234,7 +234,7 @@ struct GapComparisonCard: View {
         if y == 0 && m == 0 { return "\(d) day\(d == 1 ? "" : "s") apart" }
         if y == 0 { return "\(m) month\(m == 1 ? "" : "s") apart" }
         if m == 0 { return "\(y) year\(y == 1 ? "" : "s") apart" }
-        return "\(y)y \(m)mo apart"
+        return d > 0 ? "\(y)y \(m)mo \(d)d apart" : "\(y)y \(m)mo apart"
     }
 
     var body: some View {
