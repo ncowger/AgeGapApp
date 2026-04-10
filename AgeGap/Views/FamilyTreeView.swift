@@ -5,7 +5,7 @@ import SwiftData
 
 struct FamilyTreeView: View {
     @Query(sort: \Person.name) private var people: [Person]
-    @State private var selectedPerson: Person?
+    @State private var selectedPeople: [Person] = []
 
     // Zoom / pan state
     @State private var scale:      CGFloat = 1.0
@@ -29,8 +29,7 @@ struct FamilyTreeView: View {
                         systemImage: "figure.2.and.child.holdinghands",
                         description: Text("Add people in the People tab to build your family tree")
                     )
-                } else if people.first(where: { $0.relationshipTag == "Me" }) == nil {
-                    // No "Me" person yet — guide the user
+                } else if people.first(where: { $0.isMe }) == nil {
                     VStack(spacing: 16) {
                         Image(systemName: "person.crop.circle.badge.questionmark")
                             .font(.system(size: 56))
@@ -46,29 +45,48 @@ struct FamilyTreeView: View {
                 } else {
                     // Zoomable + pannable tree canvas
                     GeometryReader { geo in
-                        TreeCanvasView(layout: layout, onTap: { selectedPerson = $0 })
-                            .scaleEffect(scale, anchor: .center)
-                            .offset(offset)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .contentShape(Rectangle())
-                            .gesture(zoomAndPanGesture)
-                            .onTapGesture(count: 2) { resetView() }
+                        TreeCanvasView(
+                            layout: layout,
+                            selectedPeople: selectedPeople,
+                            onTap: { handleTap($0) }
+                        )
+                        .scaleEffect(scale, anchor: .center)
+                        .offset(offset)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .contentShape(Rectangle())
+                        .gesture(zoomAndPanGesture)
+                        .onTapGesture(count: 2) { resetView() }
                     }
 
-                    // Hint pill (bottom right)
+                    // Bottom overlay: comparison card or hint pill
                     VStack {
                         Spacer()
-                        HStack {
-                            Spacer()
-                            Label("Pinch to zoom  •  Double-tap to reset", systemImage: "hand.pinch")
+                        if selectedPeople.count == 2 {
+                            GapComparisonCard(
+                                person1: selectedPeople[0],
+                                person2: selectedPeople[1],
+                                onDismiss: { selectedPeople = [] }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        } else {
+                            HStack {
+                                Spacer()
+                                Label(
+                                    selectedPeople.count == 1
+                                        ? "Tap one more to compare"
+                                        : "Tap two people to compare  •  Pinch to zoom",
+                                    systemImage: selectedPeople.count == 1 ? "hand.tap" : "hand.pinch"
+                                )
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(.regularMaterial, in: Capsule())
                                 .padding(16)
+                            }
                         }
                     }
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selectedPeople.count)
                 }
             }
             .navigationTitle("Family Tree")
@@ -79,8 +97,27 @@ struct FamilyTreeView: View {
                     }
                     .disabled(people.isEmpty)
                 }
+                if !selectedPeople.isEmpty {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Clear") { selectedPeople = [] }
+                    }
+                }
             }
-            .sheet(item: $selectedPerson) { PersonDetailSheet(person: $0) }
+        }
+    }
+
+    // MARK: - Tap handling
+
+    private func handleTap(_ person: Person) {
+        withAnimation {
+            if let idx = selectedPeople.firstIndex(where: { $0.id == person.id }) {
+                selectedPeople.remove(at: idx)
+            } else if selectedPeople.count < 2 {
+                selectedPeople.append(person)
+            } else {
+                // Already have 2 — swap oldest selection out, bring new one in
+                selectedPeople = [selectedPeople[1], person]
+            }
         }
     }
 
@@ -120,20 +157,23 @@ struct FamilyTreeView: View {
 // MARK: - Tree Canvas
 
 struct TreeCanvasView: View {
-    let layout: TreeLayout
-    let onTap:  (Person) -> Void
+    let layout:         TreeLayout
+    let selectedPeople: [Person]
+    let onTap:          (Person) -> Void
+
+    private func isSelected(_ person: Person) -> Bool {
+        selectedPeople.contains(where: { $0.id == person.id })
+    }
 
     var body: some View {
-        ScrollView([.horizontal, .vertical], showsIndicators: false) {
-            ZStack(alignment: .topLeading) {
+        ZStack(alignment: .topLeading) {
 
-                // ── Edge layer (Canvas) ──────────────────────────────────
+                // ── Edge layer ───────────────────────────────────────────
                 Canvas { ctx, _ in
                     for edge in layout.edges {
                         switch edge.kind {
 
                         case .spouseLink:
-                            // Short dashed horizontal line connecting spouses
                             var path = Path()
                             path.move(to: edge.from)
                             path.addLine(to: edge.to)
@@ -144,7 +184,6 @@ struct TreeCanvasView: View {
                             )
 
                         case .parentChild:
-                            // S-curve bezier from parent midpoint down to child
                             var path = Path()
                             path.move(to: edge.from)
                             let midY = (edge.from.y + edge.to.y) / 2
@@ -165,7 +204,7 @@ struct TreeCanvasView: View {
 
                 // ── Node layer ───────────────────────────────────────────
                 ForEach(layout.people) { pp in
-                    TreePersonNode(person: pp.person)
+                    TreePersonNode(person: pp.person, isSelected: isSelected(pp.person))
                         .frame(width: TreeLayoutEngine.nodeW, height: TreeLayoutEngine.nodeH)
                         .position(pp.position)
                         .onTapGesture { onTap(pp.person) }
@@ -180,7 +219,7 @@ struct TreeCanvasView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 16) {
                                 ForEach(layout.unlinked) { person in
-                                    TreePersonNode(person: person)
+                                    TreePersonNode(person: person, isSelected: isSelected(person))
                                         .frame(width: TreeLayoutEngine.nodeW,
                                                height: TreeLayoutEngine.nodeH)
                                         .onTapGesture { onTap(person) }
@@ -194,27 +233,33 @@ struct TreeCanvasView: View {
                     .padding(.horizontal, TreeLayoutEngine.padding)
                     .offset(y: layout.size.height + 16)
                 }
-            }
-            .frame(
-                width:  layout.size.width,
-                height: layout.size.height + (layout.unlinked.isEmpty ? 0 : 140)
-            )
         }
+        .frame(
+            width:  layout.size.width,
+            height: layout.size.height + (layout.unlinked.isEmpty ? 0 : 140)
+        )
     }
 }
 
 // MARK: - Person Node
 
 struct TreePersonNode: View {
-    let person: Person
+    let person:     Person
+    var isSelected: Bool = false
 
-    private var isMe:     Bool    { person.relationshipTag == "Me" }
+    private var isMe:     Bool    { person.isMe }
     private var nodeSize: CGFloat { isMe ? 60 : 52 }
 
     var body: some View {
         VStack(spacing: 4) {
-            // Avatar
             ZStack {
+                // Selection glow
+                if isSelected {
+                    Circle()
+                        .fill(Color.orange.opacity(0.25))
+                        .frame(width: nodeSize + 16, height: nodeSize + 16)
+                }
+
                 if let data = person.photoData, let img = UIImage(data: data) {
                     Image(uiImage: img)
                         .resizable()
@@ -223,7 +268,7 @@ struct TreePersonNode: View {
                         .clipShape(Circle())
                 } else {
                     Circle()
-                        .fill(colorForRelationship(person.relationshipTag))
+                        .fill(colorForPerson(person))
                         .frame(width: nodeSize, height: nodeSize)
                         .overlay(
                             Text(person.name.prefix(2).uppercased())
@@ -248,18 +293,20 @@ struct TreePersonNode: View {
             }
             .overlay(
                 Circle()
-                    .stroke(isMe ? Color.blue : Color(.systemBackground), lineWidth: isMe ? 3 : 2)
+                    .stroke(
+                        isSelected ? Color.orange : (isMe ? Color.blue : Color(.systemBackground)),
+                        lineWidth: isSelected ? 3 : (isMe ? 3 : 2)
+                    )
                     .frame(width: nodeSize, height: nodeSize)
             )
-            .shadow(color: .black.opacity(isMe ? 0.2 : 0.1), radius: isMe ? 6 : 3)
+            .shadow(color: isSelected ? .orange.opacity(0.4) : .black.opacity(isMe ? 0.2 : 0.1),
+                    radius: isSelected ? 8 : (isMe ? 6 : 3))
 
-            // First name
             Text(person.name.components(separatedBy: " ").first ?? person.name)
                 .font(.system(size: isMe ? 11 : 10, weight: isMe ? .bold : .medium))
-                .foregroundStyle(isMe ? .blue : .primary)
+                .foregroundStyle(isSelected ? .orange : (isMe ? .blue : .primary))
                 .lineLimit(1)
 
-            // Age
             Text("Age \(person.age)")
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
@@ -277,7 +324,6 @@ struct PersonDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Avatar
                     Group {
                         if let data = person.photoData, let img = UIImage(data: data) {
                             Image(uiImage: img)
@@ -285,7 +331,7 @@ struct PersonDetailSheet: View {
                                 .scaledToFill()
                         } else {
                             Circle()
-                                .fill(colorForRelationship(person.relationshipTag))
+                                .fill(colorForPerson(person))
                                 .overlay(
                                     Text(person.name.prefix(2).uppercased())
                                         .font(.largeTitle).bold()
@@ -300,13 +346,15 @@ struct PersonDetailSheet: View {
                     VStack(spacing: 6) {
                         Text(person.name)
                             .font(.title2).bold()
-                        Text(person.relationshipTag)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 5)
-                            .background(colorForRelationship(person.relationshipTag).opacity(0.15))
-                            .clipShape(Capsule())
+                        if person.isMe {
+                            Text("⭐️ Me")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 5)
+                                .background(Color.blue.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
                         if !person.notes.isEmpty {
                             Text(person.notes)
                                 .font(.footnote)

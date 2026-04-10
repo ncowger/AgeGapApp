@@ -34,9 +34,8 @@ struct AgePair: Identifiable {
 // MARK: - View modes
 
 private enum GapMode: String, CaseIterable {
-    case compareToMe  = "vs Me"
-    case byGroup      = "By Group"
-    case allPairs     = "All Pairs"
+    case compareToMe = "vs Me"
+    case allPairs    = "All Pairs"
 }
 
 // MARK: - Main view
@@ -46,12 +45,11 @@ struct AgeGapAnalysisView: View {
     @State private var mode: GapMode = .compareToMe
     @State private var showClosest = true
 
-    private var me: Person? { people.first { $0.relationshipTag == "Me" } }
+    private var me: Person? { people.first { $0.isMe } }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Mode picker
                 Picker("Mode", selection: $mode) {
                     ForEach(GapMode.allCases, id: \.self) { m in
                         Text(m.rawValue).tag(m)
@@ -62,9 +60,8 @@ struct AgeGapAnalysisView: View {
                 .padding(.vertical, 10)
 
                 switch mode {
-                case .compareToMe:  CompareMeView(me: me, people: people, showClosest: $showClosest)
-                case .byGroup:      ByGroupView(people: people)
-                case .allPairs:     AllPairsView(people: people, showClosest: $showClosest)
+                case .compareToMe: CompareMeView(me: me, people: people, showClosest: $showClosest)
+                case .allPairs:    AllPairsView(people: people, showClosest: $showClosest)
                 }
             }
             .navigationTitle("Age Gaps")
@@ -97,7 +94,7 @@ private struct CompareMeView: View {
                 ContentUnavailableView(
                     "Add Yourself First",
                     systemImage: "person.crop.circle.badge.plus",
-                    description: Text("Tag one person as **Me** to use this view")
+                    description: Text("Mark one person as **Me** to use this view")
                 )
             } else if others.isEmpty {
                 ContentUnavailableView(
@@ -107,9 +104,8 @@ private struct CompareMeView: View {
                 )
             } else {
                 VStack(spacing: 0) {
-                    // Stats banner
                     HStack(spacing: 12) {
-                        GapStatCard(title: "Comparing to", value: me!.name.components(separatedBy: " ").first ?? "Me", accent: .yellow)
+                        GapStatCard(title: "Comparing to", value: me!.name.components(separatedBy: " ").first ?? "Me", accent: .blue)
                         GapStatCard(title: "Closest",  value: pairs.first?.gapDescription ?? "—", accent: .green)
                         GapStatCard(title: "Furthest", value: pairs.last?.gapDescription  ?? "—", accent: .red)
                     }
@@ -125,7 +121,7 @@ private struct CompareMeView: View {
                     .padding(.bottom, 8)
 
                     List(pairs) { pair in
-                        let other = pair.older.id == me!.id ? pair.younger : pair.older
+                        let other     = pair.older.id == me!.id ? pair.younger : pair.older
                         let direction = pair.older.id == me!.id ? "younger" : "older"
                         HStack(spacing: 12) {
                             VStack(spacing: 2) {
@@ -139,12 +135,12 @@ private struct CompareMeView: View {
                             .frame(width: 80)
 
                             Circle()
-                                .fill(colorForRelationship(other.relationshipTag))
+                                .fill(colorForPerson(other))
                                 .frame(width: 10, height: 10)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(other.name).font(.subheadline).bold()
-                                Text("\(other.relationshipTag) • Age \(other.age)")
+                                Text("Age \(other.age)")
                                     .font(.caption).foregroundStyle(.secondary)
                                 if !other.notes.isEmpty {
                                     Text(other.notes)
@@ -153,75 +149,6 @@ private struct CompareMeView: View {
                             }
                         }
                         .padding(.vertical, 2)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - By Group
-
-private struct ByGroupView: View {
-    let people: [Person]
-
-    private var groupedPairs: [(tag: String, pairs: [AgePair])] {
-        let tags = Set(people.map(\.relationshipTag)).sorted()
-        return tags.compactMap { tag in
-            let group = people.filter { $0.relationshipTag == tag }
-            guard group.count >= 2 else { return nil }
-            var pairs = [AgePair]()
-            for i in 0..<group.count {
-                for j in (i+1)..<group.count {
-                    pairs.append(AgePair(person1: group[i], person2: group[j]))
-                }
-            }
-            pairs.sort { $0.gapMonths < $1.gapMonths }
-            return (tag: tag, pairs: pairs)
-        }
-    }
-
-    var body: some View {
-        if groupedPairs.isEmpty {
-            ContentUnavailableView(
-                "Not Enough People",
-                systemImage: "person.2.slash",
-                description: Text("Each group needs at least 2 people to show gaps")
-            )
-        } else {
-            List {
-                ForEach(groupedPairs, id: \.tag) { group in
-                    Section {
-                        // Summary row
-                        if let closest = group.pairs.first, let furthest = group.pairs.last,
-                           closest.id != furthest.id {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Label("Closest: \(closest.older.name) & \(closest.younger.name)",
-                                          systemImage: "arrow.down.to.line")
-                                    .font(.caption)
-                                    Label("Furthest: \(furthest.older.name) & \(furthest.younger.name)",
-                                          systemImage: "arrow.up.to.line")
-                                    .font(.caption)
-                                }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    Text(closest.gapDescription)
-                                        .font(.caption).bold().foregroundStyle(.green)
-                                    Text(furthest.gapDescription)
-                                        .font(.caption).bold().foregroundStyle(.red)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-
-                        // All pairs in group
-                        ForEach(group.pairs) { pair in
-                            AgePairRow(pair: pair)
-                        }
-                    } header: {
-                        let emoji = RelationshipTag(rawValue: group.tag)?.emoji ?? "👥"
-                        Text("\(emoji) \(group.tag)  (\(group.pairs.count) pair\(group.pairs.count == 1 ? "" : "s"))")
                     }
                 }
             }
@@ -329,12 +256,12 @@ struct AgePairRow: View {
     private func personLine(_ person: Person, label: String) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(colorForRelationship(person.relationshipTag))
+                .fill(colorForPerson(person))
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 0) {
                 Text(person.name).font(.subheadline).bold()
                 HStack(spacing: 4) {
-                    Text("\(person.relationshipTag) • Age \(person.age)")
+                    Text("Age \(person.age)")
                     if !person.notes.isEmpty {
                         Text("· \(person.notes)").foregroundStyle(.tertiary)
                     }

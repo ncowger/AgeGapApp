@@ -11,19 +11,18 @@ struct AddEditPersonView: View {
 
     @State private var name             = ""
     @State private var birthday         = Date()
-    @State private var relationshipTag  = RelationshipTag.friend.rawValue
+    @State private var isMe             = false
     @State private var notes            = ""
     @State private var selectedPhoto:   PhotosPickerItem?
     @State private var photoData:       Data?
     @State private var scheduleReminder = true
 
-    // Relationship link pickers
+    // Tree link pickers
     @State private var selectedSpouseID: UUID?
     @State private var selectedParentID: UUID?
 
     var isEditing: Bool { person != nil }
 
-    // People available to link (exclude self)
     private var linkablePeople: [Person] {
         allPeople.filter { $0.id != person?.id }
     }
@@ -65,25 +64,20 @@ struct AddEditPersonView: View {
                     TextField("Full Name", text: $name)
                     DatePicker("Birthday", selection: $birthday,
                                displayedComponents: .date)
+                    Toggle("This is me ⭐️", isOn: $isMe)
                 }
 
-                // ── Relationship Tag ───────────────────────────────────
-                Section("Relationship") {
-                    Picker("Tag", selection: $relationshipTag) {
-                        ForEach(RelationshipTag.allCases, id: \.rawValue) { tag in
-                            Text("\(tag.emoji) \(tag.rawValue)").tag(tag.rawValue)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    TextField("Notes  (e.g. \"Emily's brother\")", text: $notes)
+                // ── Notes ──────────────────────────────────────────────
+                Section {
+                    TextField("e.g. \"Dad's side\", \"College friend\"", text: $notes)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                } header: {
+                    Text("Notes")
                 }
 
                 // ── Tree Links ─────────────────────────────────────────
                 Section {
-                    // Spouse
                     Picker("Spouse / Partner", selection: $selectedSpouseID) {
                         Text("None").tag(UUID?.none)
                         ForEach(linkablePeople) { p in
@@ -92,7 +86,6 @@ struct AddEditPersonView: View {
                     }
                     .pickerStyle(.menu)
 
-                    // Parent
                     Picker("Parent in Tree", selection: $selectedParentID) {
                         Text("None").tag(UUID?.none)
                         ForEach(linkablePeople) { p in
@@ -103,7 +96,7 @@ struct AddEditPersonView: View {
                 } header: {
                     Text("Family Tree Links")
                 } footer: {
-                    Text("\"Parent in Tree\" links this person as a child of the selected person. Spouse links are shown side-by-side. Notes let you add context like \"Emily's brother\".")
+                    Text("\"Parent in Tree\" links this person as a child of the selected person. Spouse links are shown side-by-side.")
                         .font(.caption)
                 }
 
@@ -138,11 +131,11 @@ struct AddEditPersonView: View {
 
     private func populateFromExisting() {
         guard let person else { return }
-        name            = person.name
-        birthday        = person.birthday
-        relationshipTag = person.relationshipTag
-        notes           = person.notes
-        photoData       = person.photoData
+        name             = person.name
+        birthday         = person.birthday
+        isMe             = person.isMe
+        notes            = person.notes
+        photoData        = person.photoData
         selectedSpouseID = person.spouseID
         selectedParentID = person.parentID
     }
@@ -153,22 +146,20 @@ struct AddEditPersonView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
 
         if let person {
-            // ── Edit existing ──
             let oldSpouseID = person.spouseID
 
             NotificationManager.shared.cancelNotification(for: person)
-            person.name            = trimmedName
-            person.birthday        = birthday
-            person.relationshipTag = relationshipTag
-            person.notes           = notes
-            person.photoData       = photoData
-            person.spouseID        = selectedSpouseID
-            person.parentID        = selectedParentID
+            person.name      = trimmedName
+            person.birthday  = birthday
+            person.isMe      = isMe
+            person.notes     = notes
+            person.photoData = photoData
+            person.spouseID  = selectedSpouseID
+            person.parentID  = selectedParentID
 
-            // Keep spouse link bidirectional
             if let old = oldSpouseID, old != selectedSpouseID,
                let oldSpouse = allPeople.first(where: { $0.id == old }) {
-                oldSpouse.spouseID = nil   // unlink old spouse
+                oldSpouse.spouseID = nil
             }
             if let newID = selectedSpouseID,
                let newSpouse = allPeople.first(where: { $0.id == newID }) {
@@ -179,19 +170,13 @@ struct AddEditPersonView: View {
                 NotificationManager.shared.scheduleNotification(for: person)
             }
         } else {
-            // ── Add new ──
-            let newPerson = Person(
-                name: trimmedName,
-                birthday: birthday,
-                relationshipTag: relationshipTag
-            )
-            newPerson.notes    = notes
+            let newPerson = Person(name: trimmedName, birthday: birthday, isMe: isMe)
+            newPerson.notes     = notes
             newPerson.photoData = photoData
-            newPerson.spouseID = selectedSpouseID
-            newPerson.parentID = selectedParentID
+            newPerson.spouseID  = selectedSpouseID
+            newPerson.parentID  = selectedParentID
             modelContext.insert(newPerson)
 
-            // Keep spouse link bidirectional
             if let sid = selectedSpouseID,
                let spouse = allPeople.first(where: { $0.id == sid }) {
                 spouse.spouseID = newPerson.id

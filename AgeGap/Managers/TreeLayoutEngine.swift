@@ -69,7 +69,7 @@ final class TreeLayoutEngine {
     // MARK: - Main entry point
 
     func buildLayout() -> TreeLayout {
-        guard let me = people.first(where: { $0.relationshipTag == "Me" }) else {
+        guard let me = people.first(where: { $0.isMe }) else {
             // No "Me" — put everyone in unlinked section
             return TreeLayout(
                 people: [], edges: [],

@@ -90,7 +90,7 @@ struct BirthdayRow: View {
                 Text(person.name).font(.headline)
                 Text(person.birthday.formatted(.dateTime.month(.wide).day()))
                     .font(.caption).foregroundStyle(.secondary)
-                Text("\(person.relationshipTag) • Turning \(turningAge)")
+                Text("Turning \(turningAge)")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -115,7 +115,7 @@ struct BirthdayRow: View {
                 Text(person.name.prefix(2).uppercased())
                     .font(.subheadline).foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(person.isBirthdayToday ? Color.orange : colorForRelationship(person.relationshipTag))
+                    .background(person.isBirthdayToday ? Color.orange : colorForPerson(person))
             }
         }
         .frame(width: 44, height: 44)

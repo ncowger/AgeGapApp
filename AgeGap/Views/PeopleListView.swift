@@ -7,43 +7,21 @@ struct PeopleListView: View {
     @State private var showingAddPerson = false
     @State private var selectedPerson: Person?
     @State private var searchText = ""
-    @State private var selectedTag = "All"
-
-    var allTags: [String] {
-        ["All"] + RelationshipTag.allCases.map(\.rawValue)
-    }
 
     var filteredPeople: [Person] {
-        people.filter { person in
-            let matchesSearch = searchText.isEmpty || person.name.localizedCaseInsensitiveContains(searchText)
-            let matchesTag = selectedTag == "All" || person.relationshipTag == selectedTag
-            return matchesSearch && matchesTag
-        }
+        guard !searchText.isEmpty else { return people }
+        return people.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { selectedTag = tag }
-                                .buttonStyle(.bordered)
-                                .tint(selectedTag == tag ? .blue : .gray)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
+            List {
+                ForEach(filteredPeople) { person in
+                    PersonRowView(person: person)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectedPerson = person }
                 }
-
-                List {
-                    ForEach(filteredPeople) { person in
-                        PersonRowView(person: person)
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectedPerson = person }
-                    }
-                    .onDelete(perform: deletePeople)
-                }
+                .onDelete(perform: deletePeople)
             }
             .searchable(text: $searchText, prompt: "Search people")
             .navigationTitle("Family & Friends")
@@ -79,12 +57,18 @@ struct PersonRowView: View {
         HStack(spacing: 12) {
             personAvatar
             VStack(alignment: .leading, spacing: 2) {
-                Text(person.name)
-                    .font(.headline)
                 HStack(spacing: 4) {
-                    Text(person.relationshipTag)
-                    Text("•")
+                    Text(person.name).font(.headline)
+                    if person.isMe {
+                        Text("⭐️").font(.caption)
+                    }
+                }
+                HStack(spacing: 4) {
                     Text("Age \(person.age)")
+                    if !person.notes.isEmpty {
+                        Text("•")
+                        Text(person.notes).lineLimit(1)
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -106,7 +90,7 @@ struct PersonRowView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(colorForRelationship(person.relationshipTag))
+                    .background(colorForPerson(person))
             }
         }
         .frame(width: 48, height: 48)

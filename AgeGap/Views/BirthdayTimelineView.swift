@@ -3,36 +3,12 @@ import SwiftData
 
 struct BirthdayTimelineView: View {
     @Query(sort: \Person.birthday) private var people: [Person]
-    @State private var selectedTag = "All"
     @State private var selectedPeople: [Person] = []
-
-    var allTags: [String] {
-        ["All"] + RelationshipTag.allCases.map(\.rawValue)
-    }
-
-    var filteredPeople: [Person] {
-        selectedTag == "All" ? people : people.filter { $0.relationshipTag == selectedTag }
-    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) {
-                                selectedTag = tag
-                                selectedPeople = []
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(selectedTag == tag ? .blue : .gray)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                }
-
-                if filteredPeople.isEmpty {
+                if people.isEmpty {
                     ContentUnavailableView(
                         "No People",
                         systemImage: "person.slash",
@@ -42,7 +18,7 @@ struct BirthdayTimelineView: View {
                     ZStack(alignment: .bottom) {
                         ScrollView {
                             TimelineContent(
-                                people: filteredPeople,
+                                people: people,
                                 selectedPeople: $selectedPeople
                             )
                             .padding()
@@ -115,7 +91,7 @@ struct TimelineContent: View {
 
                         ZStack {
                             Circle()
-                                .fill(colorForRelationship(person.relationshipTag))
+                                .fill(colorForPerson(person))
                                 .frame(width: isSelected ? 22 : 14, height: isSelected ? 22 : 14)
                                 .overlay(
                                     Circle().stroke(
@@ -143,8 +119,10 @@ struct TimelineContent: View {
                             .font(.subheadline).bold()
                             .foregroundStyle(isSelected ? .blue : .primary)
                         HStack(spacing: 4) {
-                            Text(person.relationshipTag)
-                            Text("• Age \(person.age)")
+                            Text("Age \(person.age)")
+                            if !person.notes.isEmpty {
+                                Text("• \(person.notes)").lineLimit(1)
+                            }
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -275,7 +253,7 @@ struct GapComparisonCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(colorForRelationship(person.relationshipTag).opacity(0.12))
+        .background(colorForPerson(person).opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
