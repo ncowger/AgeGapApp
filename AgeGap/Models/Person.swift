@@ -12,8 +12,9 @@ final class Person {
     var notes: String = ""
 
     // Structured tree relationships
-    var spouseID: UUID? = nil
-    var parentID: UUID? = nil
+    var spouseID:  UUID? = nil
+    var parent1ID: UUID? = nil   // primary / biological parent 1
+    var parent2ID: UUID? = nil   // primary / biological parent 2
 
     init(name: String, birthday: Date, isMe: Bool = false, photoData: Data? = nil) {
         self.id = UUID()

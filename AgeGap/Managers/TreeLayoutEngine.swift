@@ -140,7 +140,7 @@ final class TreeLayoutEngine {
         // 6. Build edges
         var edges = [TreeEdge]()
 
-        // Spouse link edges (short dashed horizontal line between the pair)
+        // Spouse link edges (short horizontal line between the pair)
         for (_, units) in unitsByGen {
             for u in units {
                 guard let sp = u.spouse,
@@ -154,26 +154,51 @@ final class TreeLayoutEngine {
             }
         }
 
-        // Parent-child edges (bezier curves from midpoint of couple → child top)
+        // Parent-child edges
         for person in people {
-            guard let childPos = posMap[person.id],
-                  let pid      = person.parentID,
-                  let parentPos = posMap[pid] else { continue }
+            guard let childPos = posMap[person.id] else { continue }
+            let childTop = CGPoint(x: childPos.x, y: childPos.y - Self.nodeH / 2 - 4)
 
-            // Draw from the midpoint between parent and spouse (if applicable)
-            let parentPerson = byID[pid]!
-            let fromX: CGFloat
-            if let sid   = parentPerson.spouseID,
-               let spPos = posMap[sid] {
-                fromX = (parentPos.x + spPos.x) / 2
+            let par1: Person? = person.parent1ID.flatMap { byID[$0] }
+            let par2: Person? = person.parent2ID.flatMap { byID[$0] }
+
+            // Check whether both parents are in the same couple unit (spouses of each other)
+            let parentsAreCoupled: Bool = {
+                guard let p1 = par1, let p2 = par2 else { return false }
+                return p1.spouseID == p2.id || p2.spouseID == p1.id
+            }()
+
+            if parentsAreCoupled, let p1 = par1, let p2 = par2,
+               let pos1 = posMap[p1.id], let pos2 = posMap[p2.id] {
+                // Both parents are a couple — single edge from their midpoint
+                let fromX = (pos1.x + pos2.x) / 2
+                let fromY = max(pos1.y, pos2.y) + Self.nodeH / 2 + 4
+                edges.append(TreeEdge(
+                    from: CGPoint(x: fromX, y: fromY),
+                    to:   childTop,
+                    kind: .parentChild
+                ))
             } else {
-                fromX = parentPos.x
+                // Parents are separate units (or only one parent) — draw individual edges
+                if let p1 = par1, let pos1 = posMap[p1.id] {
+                    // If p1 is in a couple, draw from unit midpoint only when this child
+                    // is also a child of that spouse — otherwise draw from p1 directly.
+                    let fromX = edgeSourceX(from: p1, posMap: posMap)
+                    edges.append(TreeEdge(
+                        from: CGPoint(x: fromX, y: pos1.y + Self.nodeH / 2 + 4),
+                        to:   childTop,
+                        kind: .parentChild
+                    ))
+                }
+                if let p2 = par2, let pos2 = posMap[p2.id] {
+                    let fromX = edgeSourceX(from: p2, posMap: posMap)
+                    edges.append(TreeEdge(
+                        from: CGPoint(x: fromX, y: pos2.y + Self.nodeH / 2 + 4),
+                        to:   childTop,
+                        kind: .parentChild
+                    ))
+                }
             }
-            edges.append(TreeEdge(
-                from: CGPoint(x: fromX,       y: parentPos.y + Self.nodeH / 2 + 4),
-                to:   CGPoint(x: childPos.x,  y: childPos.y  - Self.nodeH / 2 - 4),
-                kind: .parentChild
-            ))
         }
 
         return TreeLayout(
@@ -201,28 +226,36 @@ final class TreeLayoutEngine {
             if let sid = person.spouseID, let sp = byID[sid] {
                 queue.append((sp, gen))
             }
-            // Parent → one generation above
-            if let pid = person.parentID, let par = byID[pid] {
+            // Parent 1 → one generation above
+            if let pid = person.parent1ID, let par = byID[pid] {
+                queue.append((par, gen - 1))
+            }
+            // Parent 2 → one generation above
+            if let pid = person.parent2ID, let par = byID[pid] {
                 queue.append((par, gen - 1))
             }
             // Children → one generation below
             for child in children(of: person) {
                 queue.append((child, gen + 1))
             }
-            // Siblings (share same parentID) → same generation
-            if let pid = person.parentID {
-                let siblings = people.filter { $0.parentID == pid && $0.id != person.id }
+            // Siblings (share at least one parent) → same generation
+            let myParents = Set([person.parent1ID, person.parent2ID].compactMap { $0 })
+            if !myParents.isEmpty {
+                let siblings = people.filter { sib in
+                    guard sib.id != person.id, !visited.contains(sib.id) else { return false }
+                    let sibParents = Set([sib.parent1ID, sib.parent2ID].compactMap { $0 })
+                    return !myParents.isDisjoint(with: sibParents)
+                }
                 for sib in siblings { queue.append((sib, gen)) }
             }
         }
         return map
     }
 
-    /// All children whose parentID points to this person or their spouse
+    /// All children whose parent1ID or parent2ID points to this person
     private func children(of person: Person) -> [Person] {
         people.filter {
-            $0.parentID == person.id ||
-            (person.spouseID != nil && $0.parentID == person.spouseID)
+            $0.parent1ID == person.id || $0.parent2ID == person.id
         }
     }
 
@@ -245,8 +278,10 @@ final class TreeLayoutEngine {
                let spGen  = genMap[sid],
                spGen == gen,
                !processed.contains(sid) {
-                // Decide which is primary (the one whose parentID is in the tree)
-                let primaryFirst = person.parentID != nil || spouse.parentID == nil
+                // Decide which is primary (the one who has parents links in the tree)
+                let personHasParent = person.parent1ID != nil || person.parent2ID != nil
+                let spouseHasParent = spouse.parent1ID != nil || spouse.parent2ID != nil
+                let primaryFirst = personHasParent || !spouseHasParent
                 let unit = primaryFirst
                     ? FamilyUnit(primary: person, spouse: spouse, gen: gen)
                     : FamilyUnit(primary: spouse,  spouse: person,  gen: gen)
@@ -292,10 +327,26 @@ final class TreeLayoutEngine {
         return result
     }
 
-    /// Returns the x-center of the parent unit, or 0 if unknown (sorted to middle)
+    /// Returns the sorting x-center for a unit based on the x-positions of its parents.
+    /// If the primary person has two parents in different units, returns the midpoint.
     private func parentXCenter(unit: FamilyUnit, centerMap: [UUID: CGFloat]) -> CGFloat {
-        if let pid = unit.primary.parentID, let cx = centerMap[pid] { return cx }
-        if let pid = unit.spouse?.parentID, let cx = centerMap[pid] { return cx }
-        return 0
+        var centers: [CGFloat] = []
+        if let p = unit.primary.parent1ID.flatMap({ centerMap[$0] }) { centers.append(p) }
+        if let p = unit.primary.parent2ID.flatMap({ centerMap[$0] }) { centers.append(p) }
+        // Fall back to spouse's parents if primary has none in map yet
+        if centers.isEmpty {
+            if let p = unit.spouse?.parent1ID.flatMap({ centerMap[$0] }) { centers.append(p) }
+            if let p = unit.spouse?.parent2ID.flatMap({ centerMap[$0] }) { centers.append(p) }
+        }
+        guard !centers.isEmpty else { return 0 }
+        return centers.reduce(0, +) / CGFloat(centers.count)
+    }
+
+    /// The x coordinate from which to draw the edge from a single parent node.
+    /// If the parent is in a couple *and the child shares only this parent* (split family),
+    /// draw from the parent's own node rather than the couple midpoint.
+    private func edgeSourceX(from parent: Person, posMap: [UUID: CGPoint]) -> CGFloat {
+        guard let pos = posMap[parent.id] else { return 0 }
+        return pos.x
     }
 }

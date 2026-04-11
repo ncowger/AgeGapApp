@@ -17,8 +17,9 @@ struct AddEditPersonView: View {
     @State private var photoData:       Data?
 
     // Tree link pickers
-    @State private var selectedSpouseID: UUID?
-    @State private var selectedParentID: UUID?
+    @State private var selectedSpouseID:  UUID?
+    @State private var selectedParent1ID: UUID?
+    @State private var selectedParent2ID: UUID?
 
     var isEditing: Bool { person != nil }
 
@@ -91,17 +92,26 @@ struct AddEditPersonView: View {
                     }
                     .pickerStyle(.menu)
 
-                    Picker("Parent in Tree", selection: $selectedParentID) {
+                    Picker("Parent 1", selection: $selectedParent1ID) {
                         Text("None").tag(UUID?.none)
                         ForEach(linkablePeople) { p in
                             Text(p.name).tag(Optional(p.id))
                         }
                     }
                     .pickerStyle(.menu)
+
+                    Picker("Parent 2", selection: $selectedParent2ID) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(linkablePeople.filter { $0.id != selectedParent1ID }) { p in
+                            Text(p.name).tag(Optional(p.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(selectedParent1ID == nil)
                 } header: {
                     Text("Family Tree Links")
                 } footer: {
-                    Text("\"Parent in Tree\" links this person as a child of the selected person. Spouse links are shown side-by-side.")
+                    Text("Parents link this person as a child in the tree. Two parents can be from different couples, supporting blended families. Spouse links are shown side-by-side.")
                         .font(.caption)
                 }
 
@@ -137,8 +147,9 @@ struct AddEditPersonView: View {
         isMe             = person.isMe
         notes            = person.notes
         photoData        = person.photoData
-        selectedSpouseID = person.spouseID
-        selectedParentID = person.parentID
+        selectedSpouseID  = person.spouseID
+        selectedParent1ID = person.parent1ID
+        selectedParent2ID = person.parent2ID
     }
 
     // MARK: - Save
@@ -154,14 +165,16 @@ struct AddEditPersonView: View {
         if let person {
             let oldSpouseID = person.spouseID
 
-            person.name            = trimmedName
-            person.birthday        = birthday
-            person.isMe            = isMe
-            person.notes           = notes
-            person.photoData       = photoData
-            person.spouseID = selectedSpouseID
-            person.parentID = selectedParentID
+            person.name      = trimmedName
+            person.birthday  = birthday
+            person.isMe      = isMe
+            person.notes     = notes
+            person.photoData = photoData
+            person.spouseID  = selectedSpouseID
+            person.parent1ID = selectedParent1ID
+            person.parent2ID = selectedParent2ID
 
+            // Keep bidirectional spouse link consistent
             if let old = oldSpouseID, old != selectedSpouseID,
                let oldSpouse = allPeople.first(where: { $0.id == old }) {
                 oldSpouse.spouseID = nil
@@ -174,10 +187,11 @@ struct AddEditPersonView: View {
             NotificationManager.shared.rescheduleAll(people: allPeople)
         } else {
             let newPerson = Person(name: trimmedName, birthday: birthday, isMe: isMe)
-            newPerson.notes            = notes
-            newPerson.photoData        = photoData
-            newPerson.spouseID = selectedSpouseID
-            newPerson.parentID = selectedParentID
+            newPerson.notes      = notes
+            newPerson.photoData  = photoData
+            newPerson.spouseID   = selectedSpouseID
+            newPerson.parent1ID  = selectedParent1ID
+            newPerson.parent2ID  = selectedParent2ID
             modelContext.insert(newPerson)
 
             if let sid = selectedSpouseID,
