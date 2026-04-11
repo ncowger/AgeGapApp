@@ -164,17 +164,18 @@ struct TimelineContent: View {
     }
 
     private func preciseGap(from d1: Date, to d2: Date) -> String {
-        let earlier = min(d1, d2)
-        let later   = max(d1, d2)
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: earlier, to: later)
+        let cal = Calendar.current
+        let earlier = cal.startOfDay(for: min(d1, d2))
+        let later   = cal.startOfDay(for: max(d1, d2))
+        let c = cal.dateComponents([.year, .month, .day], from: earlier, to: later)
         let y = c.year  ?? 0
         let m = c.month ?? 0
         let d = c.day   ?? 0
         if y == 0 && m == 0 && d == 0 { return "Same day" }
         if y == 0 && m == 0 { return "\(d)d gap" }
-        if y == 0 { return m == 1 ? "1 mo gap" : "\(m) mo gap" }
-        if m == 0 { return y == 1 ? "1 yr gap" : "\(y) yr gap" }
-        return "\(y)y \(m)mo gap"
+        if y == 0 { return d > 0 ? "\(m)mo \(d)d gap" : "\(m)mo gap" }
+        if m == 0 { return d > 0 ? "\(y)y \(d)d gap" : "\(y)y gap" }
+        return d > 0 ? "\(y)y \(m)mo \(d)d gap" : "\(y)y \(m)mo gap"
     }
 
     private func handleTap(_ person: Person) {
@@ -204,14 +205,23 @@ struct GapComparisonCard: View {
     private var younger: Person { person1.birthday <= person2.birthday ? person2 : person1 }
 
     private var gapDescription: String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: older.birthday, to: younger.birthday)
+        let cal = Calendar.current
+        let earlier = cal.startOfDay(for: older.birthday)
+        let later   = cal.startOfDay(for: younger.birthday)
+        let c = cal.dateComponents([.year, .month, .day], from: earlier, to: later)
         let y = c.year ?? 0
         let m = c.month ?? 0
         let d = c.day ?? 0
         if y == 0 && m == 0 && d == 0 { return "Same birthday!" }
         if y == 0 && m == 0 { return "\(d) day\(d == 1 ? "" : "s") apart" }
-        if y == 0 { return "\(m) month\(m == 1 ? "" : "s") apart" }
-        if m == 0 { return "\(y) year\(y == 1 ? "" : "s") apart" }
+        if y == 0 {
+            let base = "\(m) month\(m == 1 ? "" : "s")"
+            return d > 0 ? "\(base) \(d)d apart" : "\(base) apart"
+        }
+        if m == 0 {
+            let base = "\(y) year\(y == 1 ? "" : "s")"
+            return d > 0 ? "\(base) \(d)d apart" : "\(base) apart"
+        }
         return d > 0 ? "\(y)y \(m)mo \(d)d apart" : "\(y)y \(m)mo apart"
     }
 
