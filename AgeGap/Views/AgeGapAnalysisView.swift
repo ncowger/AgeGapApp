@@ -9,9 +9,13 @@ struct AgePair: Identifiable {
     let person2: Person
 
     private var comps: DateComponents {
-        let earlier = person1.birthday <= person2.birthday ? person1.birthday : person2.birthday
-        let later   = person1.birthday <= person2.birthday ? person2.birthday : person1.birthday
-        return Calendar.current.dateComponents([.year, .month, .day], from: earlier, to: later)
+        let cal = Calendar.current
+        // Normalize to midnight so time-of-day doesn't affect day counts
+        let d1 = cal.startOfDay(for: person1.birthday)
+        let d2 = cal.startOfDay(for: person2.birthday)
+        let earlier = d1 <= d2 ? d1 : d2
+        let later   = d1 <= d2 ? d2 : d1
+        return cal.dateComponents([.year, .month, .day], from: earlier, to: later)
     }
 
     var gapMonths: Int { (comps.year ?? 0) * 12 + (comps.month ?? 0) }
@@ -21,10 +25,16 @@ struct AgePair: Identifiable {
         let m = comps.month ?? 0
         let d = comps.day   ?? 0
         if y == 0 && m == 0 && d == 0 { return "Same day" }
-        if y == 0 && m == 0 { return d == 1 ? "1 day"   : "\(d) days" }
-        if y == 0            { return m == 1 ? "1 month" : "\(m) months" }
-        if m == 0            { return y == 1 ? "1 year"  : "\(y) years" }
-        return "\(y)y \(m)mo"
+        if y == 0 && m == 0 { return d == 1 ? "1 day" : "\(d) days" }
+        if y == 0 {
+            let base = m == 1 ? "1 month" : "\(m) months"
+            return d > 0 ? "\(base) \(d)d" : base
+        }
+        if m == 0 {
+            let base = y == 1 ? "1 year" : "\(y) years"
+            return d > 0 ? "\(base) \(d)d" : base
+        }
+        return d > 0 ? "\(y)y \(m)mo \(d)d" : "\(y)y \(m)mo"
     }
 
     var older:   Person { person1.birthday <= person2.birthday ? person1 : person2 }
