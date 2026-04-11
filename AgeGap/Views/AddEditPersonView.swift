@@ -64,7 +64,13 @@ struct AddEditPersonView: View {
                     TextField("Full Name", text: $name)
                     DatePicker("Birthday", selection: $birthday,
                                displayedComponents: .date)
+                    let currentMe = allPeople.first(where: { $0.isMe && $0.id != person?.id })
                     Toggle("This is me ⭐️", isOn: $isMe)
+                    if let currentMe, !isMe {
+                        Text("Currently set to \(currentMe.name) — enabling this will transfer it")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 // ── Notes ──────────────────────────────────────────────
@@ -144,6 +150,11 @@ struct AddEditPersonView: View {
 
     private func save() {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
+
+        // Enforce single "Me" — clear the flag on everyone else first
+        if isMe {
+            allPeople.filter { $0.id != person?.id }.forEach { $0.isMe = false }
+        }
 
         if let person {
             let oldSpouseID = person.spouseID
