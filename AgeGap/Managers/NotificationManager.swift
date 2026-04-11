@@ -3,6 +3,7 @@ import Foundation
 
 // MARK: - Settings keys (shared with SettingsView via @AppStorage)
 enum ReminderKey {
+    static let enabled  = "rem_enabled"
     static let dayOf    = "rem_dayOf"
     static let adv1     = "rem_adv1"
     static let adv1Days = "rem_adv1Days"
@@ -31,6 +32,11 @@ final class NotificationManager {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
         let d = UserDefaults.standard
+        let enabled  = d.object(forKey: ReminderKey.enabled)  == nil ? true  : d.bool(forKey: ReminderKey.enabled)
+
+        // If reminders are globally off, leave everything cleared and return
+        guard enabled else { return }
+
         let dayOf    = d.object(forKey: ReminderKey.dayOf)    == nil ? true  : d.bool(forKey: ReminderKey.dayOf)
         let adv1     = d.object(forKey: ReminderKey.adv1)     == nil ? false : d.bool(forKey: ReminderKey.adv1)
         let adv1Days = d.object(forKey: ReminderKey.adv1Days) == nil ? 7     : d.integer(forKey: ReminderKey.adv1Days)
@@ -38,7 +44,7 @@ final class NotificationManager {
         let adv2Days = d.object(forKey: ReminderKey.adv2Days) == nil ? 1     : d.integer(forKey: ReminderKey.adv2Days)
         let monthly  = d.object(forKey: ReminderKey.monthly)  == nil ? false : d.bool(forKey: ReminderKey.monthly)
 
-        for person in people where person.reminderEnabled {
+        for person in people {
             if dayOf {
                 scheduleBirthday(person: person, daysBefore: 0)
             }

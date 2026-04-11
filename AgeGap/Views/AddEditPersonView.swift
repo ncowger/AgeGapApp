@@ -15,7 +15,6 @@ struct AddEditPersonView: View {
     @State private var notes            = ""
     @State private var selectedPhoto:   PhotosPickerItem?
     @State private var photoData:       Data?
-    @State private var reminderEnabled  = true
 
     // Tree link pickers
     @State private var selectedSpouseID: UUID?
@@ -106,15 +105,6 @@ struct AddEditPersonView: View {
                         .font(.caption)
                 }
 
-                // ── Reminder ───────────────────────────────────────────
-                Section {
-                    Toggle("Include in birthday reminders", isOn: $reminderEnabled)
-                } header: {
-                    Text("Reminder")
-                } footer: {
-                    Text("Reminder timing is configured in Settings.")
-                        .font(.caption)
-                }
             }
             .navigationTitle(isEditing ? "Edit Person" : "Add Person")
             .navigationBarTitleDisplayMode(.inline)
@@ -149,7 +139,6 @@ struct AddEditPersonView: View {
         photoData        = person.photoData
         selectedSpouseID = person.spouseID
         selectedParentID = person.parentID
-        reminderEnabled  = person.reminderEnabled
     }
 
     // MARK: - Save
@@ -170,9 +159,8 @@ struct AddEditPersonView: View {
             person.isMe            = isMe
             person.notes           = notes
             person.photoData       = photoData
-            person.spouseID        = selectedSpouseID
-            person.parentID        = selectedParentID
-            person.reminderEnabled = reminderEnabled
+            person.spouseID = selectedSpouseID
+            person.parentID = selectedParentID
 
             if let old = oldSpouseID, old != selectedSpouseID,
                let oldSpouse = allPeople.first(where: { $0.id == old }) {
@@ -188,9 +176,8 @@ struct AddEditPersonView: View {
             let newPerson = Person(name: trimmedName, birthday: birthday, isMe: isMe)
             newPerson.notes            = notes
             newPerson.photoData        = photoData
-            newPerson.spouseID         = selectedSpouseID
-            newPerson.parentID         = selectedParentID
-            newPerson.reminderEnabled  = reminderEnabled
+            newPerson.spouseID = selectedSpouseID
+            newPerson.parentID = selectedParentID
             modelContext.insert(newPerson)
 
             if let sid = selectedSpouseID,
