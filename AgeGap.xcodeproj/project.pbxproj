@@ -19,6 +19,7 @@
 		AA0000000000000000000209 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000109 /* Assets.xcassets */; };
 		AA000000000000000000020A /* FamilyTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010B /* FamilyTreeView.swift */; };
 		AA000000000000000000020B /* TreeLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010C /* TreeLayoutEngine.swift */; };
+		AA000000000000000000020C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010D /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 		AA000000000000000000010A /* AgeGap.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgeGap.entitlements; sourceTree = "<group>"; };
 		AA000000000000000000010B /* FamilyTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTreeView.swift; sourceTree = "<group>"; };
 		AA000000000000000000010C /* TreeLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeLayoutEngine.swift; sourceTree = "<group>"; };
+		AA000000000000000000010D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +98,7 @@
 				AA0000000000000000000106 /* AgeGapAnalysisView.swift */,
 				AA0000000000000000000107 /* UpcomingBirthdaysView.swift */,
 				AA000000000000000000010B /* FamilyTreeView.swift */,
+				AA000000000000000000010D /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -189,6 +192,7 @@
 				AA0000000000000000000208 /* NotificationManager.swift in Sources */,
 				AA000000000000000000020A /* FamilyTreeView.swift in Sources */,
 				AA000000000000000000020B /* TreeLayoutEngine.swift in Sources */,
+				AA000000000000000000020C /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

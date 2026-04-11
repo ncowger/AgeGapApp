@@ -15,7 +15,7 @@ struct AddEditPersonView: View {
     @State private var notes            = ""
     @State private var selectedPhoto:   PhotosPickerItem?
     @State private var photoData:       Data?
-    @State private var scheduleReminder = true
+    @State private var reminderEnabled  = true
 
     // Tree link pickers
     @State private var selectedSpouseID: UUID?
@@ -107,8 +107,13 @@ struct AddEditPersonView: View {
                 }
 
                 // ── Reminder ───────────────────────────────────────────
-                Section("Reminder") {
-                    Toggle("Annual Birthday Reminder", isOn: $scheduleReminder)
+                Section {
+                    Toggle("Include in birthday reminders", isOn: $reminderEnabled)
+                } header: {
+                    Text("Reminder")
+                } footer: {
+                    Text("Reminder timing is configured in Settings.")
+                        .font(.caption)
                 }
             }
             .navigationTitle(isEditing ? "Edit Person" : "Add Person")
@@ -144,6 +149,7 @@ struct AddEditPersonView: View {
         photoData        = person.photoData
         selectedSpouseID = person.spouseID
         selectedParentID = person.parentID
+        reminderEnabled  = person.reminderEnabled
     }
 
     // MARK: - Save
@@ -159,14 +165,14 @@ struct AddEditPersonView: View {
         if let person {
             let oldSpouseID = person.spouseID
 
-            NotificationManager.shared.cancelNotification(for: person)
-            person.name      = trimmedName
-            person.birthday  = birthday
-            person.isMe      = isMe
-            person.notes     = notes
-            person.photoData = photoData
-            person.spouseID  = selectedSpouseID
-            person.parentID  = selectedParentID
+            person.name            = trimmedName
+            person.birthday        = birthday
+            person.isMe            = isMe
+            person.notes           = notes
+            person.photoData       = photoData
+            person.spouseID        = selectedSpouseID
+            person.parentID        = selectedParentID
+            person.reminderEnabled = reminderEnabled
 
             if let old = oldSpouseID, old != selectedSpouseID,
                let oldSpouse = allPeople.first(where: { $0.id == old }) {
@@ -177,15 +183,14 @@ struct AddEditPersonView: View {
                 newSpouse.spouseID = person.id
             }
 
-            if scheduleReminder {
-                NotificationManager.shared.scheduleNotification(for: person)
-            }
+            NotificationManager.shared.rescheduleAll(people: allPeople)
         } else {
             let newPerson = Person(name: trimmedName, birthday: birthday, isMe: isMe)
-            newPerson.notes     = notes
-            newPerson.photoData = photoData
-            newPerson.spouseID  = selectedSpouseID
-            newPerson.parentID  = selectedParentID
+            newPerson.notes            = notes
+            newPerson.photoData        = photoData
+            newPerson.spouseID         = selectedSpouseID
+            newPerson.parentID         = selectedParentID
+            newPerson.reminderEnabled  = reminderEnabled
             modelContext.insert(newPerson)
 
             if let sid = selectedSpouseID,
@@ -193,9 +198,8 @@ struct AddEditPersonView: View {
                 spouse.spouseID = newPerson.id
             }
 
-            if scheduleReminder {
-                NotificationManager.shared.scheduleNotification(for: newPerson)
-            }
+            // Include the new person since @Query may not update synchronously
+            NotificationManager.shared.rescheduleAll(people: allPeople + [newPerson])
         }
         dismiss()
     }

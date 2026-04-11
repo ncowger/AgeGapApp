@@ -42,11 +42,11 @@ struct PeopleListView: View {
     }
 
     private func deletePeople(at offsets: IndexSet) {
-        for index in offsets {
-            let person = filteredPeople[index]
-            NotificationManager.shared.cancelNotification(for: person)
-            modelContext.delete(person)
-        }
+        let toDelete    = offsets.map { filteredPeople[$0] }
+        let deletedIDs  = Set(toDelete.map { $0.id })
+        toDelete.forEach { modelContext.delete($0) }
+        let remaining   = people.filter { !deletedIDs.contains($0.id) }
+        NotificationManager.shared.rescheduleAll(people: remaining)
     }
 }
 
