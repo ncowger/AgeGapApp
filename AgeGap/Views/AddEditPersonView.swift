@@ -92,7 +92,7 @@ struct AddEditPersonView: View {
                     }
                     .pickerStyle(.menu)
 
-                    Picker("Parent 1", selection: $selectedParent1ID) {
+                    Picker("Father", selection: $selectedParent1ID) {
                         Text("None").tag(UUID?.none)
                         ForEach(linkablePeople) { p in
                             Text(p.name).tag(Optional(p.id))
@@ -100,7 +100,7 @@ struct AddEditPersonView: View {
                     }
                     .pickerStyle(.menu)
 
-                    Picker("Parent 2", selection: $selectedParent2ID) {
+                    Picker("Mother", selection: $selectedParent2ID) {
                         Text("None").tag(UUID?.none)
                         ForEach(linkablePeople.filter { $0.id != selectedParent1ID }) { p in
                             Text(p.name).tag(Optional(p.id))
@@ -111,7 +111,7 @@ struct AddEditPersonView: View {
                 } header: {
                     Text("Family Tree Links")
                 } footer: {
-                    Text("Parents link this person as a child in the tree. Two parents can be from different couples, supporting blended families. Spouse links are shown side-by-side.")
+                    Text("Father and Mother link this person as a child in the tree. They can be from different couples, supporting blended families. Spouse links are shown side-by-side.")
                         .font(.caption)
                 }
 
