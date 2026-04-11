@@ -88,6 +88,9 @@ private struct CompareMeView: View {
             .sorted { showClosest ? $0.gapMonths < $1.gapMonths : $0.gapMonths > $1.gapMonths }
     }
 
+    private var closestPair:  AgePair? { pairs.min(by: { $0.gapMonths < $1.gapMonths }) }
+    private var furthestPair: AgePair? { pairs.max(by: { $0.gapMonths < $1.gapMonths }) }
+
     var body: some View {
         Group {
             if me == nil {
@@ -106,8 +109,8 @@ private struct CompareMeView: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
                         GapStatCard(title: "Comparing to", value: me!.name.components(separatedBy: " ").first ?? "Me", accent: .blue)
-                        GapStatCard(title: "Closest",  value: pairs.first?.gapDescription ?? "—", accent: .green)
-                        GapStatCard(title: "Furthest", value: pairs.last?.gapDescription  ?? "—", accent: .red)
+                        GapStatCard(title: "Closest",  value: closestPair?.gapDescription  ?? "—", accent: .green)
+                        GapStatCard(title: "Furthest", value: furthestPair?.gapDescription ?? "—", accent: .red)
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
@@ -172,6 +175,9 @@ private struct AllPairsView: View {
         return result.sorted { showClosest ? $0.gapMonths < $1.gapMonths : $0.gapMonths > $1.gapMonths }
     }
 
+    private var closestPair:  AgePair? { pairs.min(by: { $0.gapMonths < $1.gapMonths }) }
+    private var furthestPair: AgePair? { pairs.max(by: { $0.gapMonths < $1.gapMonths }) }
+
     var body: some View {
         Group {
             if pairs.isEmpty {
@@ -184,8 +190,8 @@ private struct AllPairsView: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
                         GapStatCard(title: "People",  value: "\(people.count)", accent: .blue)
-                        GapStatCard(title: "Closest", value: pairs.first?.gapDescription ?? "—", accent: .green)
-                        GapStatCard(title: "Furthest",value: pairs.last?.gapDescription  ?? "—", accent: .red)
+                        GapStatCard(title: "Closest", value: closestPair?.gapDescription  ?? "—", accent: .green)
+                        GapStatCard(title: "Furthest",value: furthestPair?.gapDescription ?? "—", accent: .red)
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
