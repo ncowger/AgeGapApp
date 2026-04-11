@@ -5,6 +5,7 @@ import UserNotifications
 struct UpcomingBirthdaysView: View {
     @Query(sort: \Person.name) private var people: [Person]
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var showSettings = false
 
     var todayBirthdays: [Person] {
         people.filter { $0.isBirthdayToday }
@@ -55,13 +56,12 @@ struct UpcomingBirthdaysView: View {
             .navigationTitle("Birthdays")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        NotificationManager.shared.requestPermission()
-                    } label: {
-                        Image(systemName: "bell.badge")
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
                     }
                 }
             }
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .onAppear { checkStatus() }
         }
     }

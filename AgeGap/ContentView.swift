@@ -17,9 +17,6 @@ struct ContentView: View {
 
             UpcomingBirthdaysView()
                 .tabItem { Label("Birthdays", systemImage: "gift") }
-
-            SettingsView()
-                .tabItem { Label("Settings",  systemImage: "gearshape") }
         }
     }
 }
