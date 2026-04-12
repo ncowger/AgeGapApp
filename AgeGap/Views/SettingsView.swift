@@ -4,13 +4,13 @@ import SwiftData
 struct SettingsView: View {
     @Query private var people: [Person]
 
-    @AppStorage(ReminderKey.enabled)  private var remindersEnabled: Bool = true
-    @AppStorage(ReminderKey.dayOf)    private var dayOfEnabled:     Bool = true
-    @AppStorage(ReminderKey.adv1)     private var adv1Enabled:      Bool = false
-    @AppStorage(ReminderKey.adv1Days) private var adv1Days:         Int  = 7
-    @AppStorage(ReminderKey.adv2)     private var adv2Enabled:      Bool = false
-    @AppStorage(ReminderKey.adv2Days) private var adv2Days:         Int  = 1
-    @AppStorage(ReminderKey.monthly)  private var monthlyEnabled:   Bool = false
+    @AppStorage(ReminderKey.enabled)     private var remindersEnabled: Bool = true
+    @AppStorage(ReminderKey.bdayEnabled) private var bdayEnabled:      Bool = true
+    @AppStorage(ReminderKey.bdayDays)    private var bdayDays:         Int  = 0
+    @AppStorage(ReminderKey.monthly)     private var monthlyEnabled:   Bool = false
+
+    // Whether the reminder fires in advance (true) or on the birthday (false)
+    private var isAdvance: Bool { bdayDays > 0 }
 
     var body: some View {
         NavigationStack {
@@ -24,33 +24,30 @@ struct SettingsView: View {
                         .font(.caption)
                 }
 
-                // ── Birthday Reminders ─────────────────────────────────
+                // ── Birthday Reminder ──────────────────────────────────
                 Section {
-                    Toggle("On their birthday", isOn: $dayOfEnabled)
+                    Toggle("Birthday reminder", isOn: $bdayEnabled)
 
-                    Toggle("First advance reminder", isOn: $adv1Enabled)
-                    if adv1Enabled {
-                        Stepper(value: $adv1Days, in: 1...365) {
-                            Text(daysLabelStatic(adv1Days))
+                    if bdayEnabled {
+                        Picker("Remind me", selection: Binding(
+                            get: { isAdvance },
+                            set: { adv in bdayDays = adv ? max(bdayDays, 1) : 0 }
+                        )) {
+                            Text("On their birthday").tag(false)
+                            Text("In advance").tag(true)
                         }
-                    }
+                        .pickerStyle(.segmented)
 
-                    Toggle("Second advance reminder", isOn: $adv2Enabled)
-                    if adv2Enabled {
-                        Stepper(value: $adv2Days, in: 1...365) {
-                            Text(daysLabelStatic(adv2Days))
-                        }
-                        if adv2Days == adv1Days && adv1Enabled {
-                            Label("Same day as first reminder — change one",
-                                  systemImage: "exclamationmark.triangle")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
+                        if isAdvance {
+                            Stepper(value: $bdayDays, in: 1...365) {
+                                Text(daysLabel(bdayDays))
+                            }
                         }
                     }
                 } header: {
-                    Text("Birthday Reminders")
+                    Text("Birthday Reminder")
                 } footer: {
-                    Text("All reminders fire at 9 AM and apply to every person in your list.")
+                    Text("Fires at 9 AM and applies to every person in your list.")
                         .font(.caption)
                 }
                 .disabled(!remindersEnabled)
@@ -59,7 +56,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Upcoming birthdays on the 1st", isOn: $monthlyEnabled)
                     if monthlyEnabled {
-                        Label("Sent at 9 AM on the 1st of each month",
+                        Label("A single notification on the 1st of each month listing everyone with a birthday that month.",
                               systemImage: "info.circle")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -86,11 +83,8 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .onChange(of: remindersEnabled) { _, _ in reschedule() }
-            .onChange(of: dayOfEnabled)     { _, _ in reschedule() }
-            .onChange(of: adv1Enabled)      { _, _ in reschedule() }
-            .onChange(of: adv1Days)         { _, _ in reschedule() }
-            .onChange(of: adv2Enabled)      { _, _ in reschedule() }
-            .onChange(of: adv2Days)         { _, _ in reschedule() }
+            .onChange(of: bdayEnabled)      { _, _ in reschedule() }
+            .onChange(of: bdayDays)         { _, _ in reschedule() }
             .onChange(of: monthlyEnabled)   { _, _ in reschedule() }
         }
     }
@@ -102,15 +96,19 @@ struct SettingsView: View {
     }
 
     private var activeNotificationCount: Int {
-        let perPerson = (dayOfEnabled ? 1 : 0) + (adv1Enabled ? 1 : 0) + (adv2Enabled ? 1 : 0)
-        let monthly   = monthlyEnabled ? 12 : 0
-        return people.count * perPerson + monthly
+        (bdayEnabled ? people.count : 0) + (monthlyEnabled ? 12 : 0)
+    }
+
+    private func daysLabel(_ days: Int) -> String {
+        if days == 1     { return "1 day before" }
+        if days % 7 == 0 { let w = days / 7; return "\(w) week\(w == 1 ? "" : "s") before" }
+        return "\(days) days before"
     }
 }
 
-// Shared label helper used in NotificationManager body text
+// Kept for use in NotificationManager body text
 func daysLabelStatic(_ days: Int) -> String {
-    if days == 1       { return "1 day before" }
-    if days % 7 == 0   { let w = days / 7; return "\(w) week\(w == 1 ? "" : "s") before" }
+    if days == 1     { return "1 day before" }
+    if days % 7 == 0 { let w = days / 7; return "\(w) week\(w == 1 ? "" : "s") before" }
     return "\(days) days before"
 }

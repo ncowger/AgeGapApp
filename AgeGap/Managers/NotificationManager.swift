@@ -3,13 +3,10 @@ import Foundation
 
 // MARK: - Settings keys (shared with SettingsView via @AppStorage)
 enum ReminderKey {
-    static let enabled  = "rem_enabled"
-    static let dayOf    = "rem_dayOf"
-    static let adv1     = "rem_adv1"
-    static let adv1Days = "rem_adv1Days"
-    static let adv2     = "rem_adv2"
-    static let adv2Days = "rem_adv2Days"
-    static let monthly  = "rem_monthly"
+    static let enabled     = "rem_enabled"
+    static let bdayEnabled = "rem_bdayEnabled"   // single birthday reminder on/off
+    static let bdayDays    = "rem_bdayDays"       // 0 = on birthday, >0 = days in advance
+    static let monthly     = "rem_monthly"
 }
 
 final class NotificationManager {
@@ -32,27 +29,16 @@ final class NotificationManager {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
         let d = UserDefaults.standard
-        let enabled  = d.object(forKey: ReminderKey.enabled)  == nil ? true  : d.bool(forKey: ReminderKey.enabled)
-
-        // If reminders are globally off, leave everything cleared and return
+        let enabled     = d.object(forKey: ReminderKey.enabled)     == nil ? true  : d.bool(forKey: ReminderKey.enabled)
         guard enabled else { return }
 
-        let dayOf    = d.object(forKey: ReminderKey.dayOf)    == nil ? true  : d.bool(forKey: ReminderKey.dayOf)
-        let adv1     = d.object(forKey: ReminderKey.adv1)     == nil ? false : d.bool(forKey: ReminderKey.adv1)
-        let adv1Days = d.object(forKey: ReminderKey.adv1Days) == nil ? 7     : d.integer(forKey: ReminderKey.adv1Days)
-        let adv2     = d.object(forKey: ReminderKey.adv2)     == nil ? false : d.bool(forKey: ReminderKey.adv2)
-        let adv2Days = d.object(forKey: ReminderKey.adv2Days) == nil ? 1     : d.integer(forKey: ReminderKey.adv2Days)
-        let monthly  = d.object(forKey: ReminderKey.monthly)  == nil ? false : d.bool(forKey: ReminderKey.monthly)
+        let bdayEnabled = d.object(forKey: ReminderKey.bdayEnabled) == nil ? true  : d.bool(forKey: ReminderKey.bdayEnabled)
+        let bdayDays    = d.object(forKey: ReminderKey.bdayDays)    == nil ? 0     : d.integer(forKey: ReminderKey.bdayDays)
+        let monthly     = d.object(forKey: ReminderKey.monthly)     == nil ? false : d.bool(forKey: ReminderKey.monthly)
 
-        for person in people {
-            if dayOf {
-                scheduleBirthday(person: person, daysBefore: 0)
-            }
-            if adv1 && adv1Days > 0 {
-                scheduleBirthday(person: person, daysBefore: adv1Days)
-            }
-            if adv2 && adv2Days > 0 && adv2Days != adv1Days {
-                scheduleBirthday(person: person, daysBefore: adv2Days)
+        if bdayEnabled {
+            for person in people {
+                scheduleBirthday(person: person, daysBefore: bdayDays)
             }
         }
 
@@ -70,14 +56,14 @@ final class NotificationManager {
         guard let notifDate = calendar.date(byAdding: .day, value: -daysBefore,
                                             to: person.birthday) else { return }
 
-        var trigger = calendar.dateComponents([.month, .day], from: notifDate)
-        trigger.hour   = 9
-        trigger.minute = 0
-        trigger.second = 0
+        var trigger        = calendar.dateComponents([.month, .day], from: notifDate)
+        trigger.hour       = 9
+        trigger.minute     = 0
+        trigger.second     = 0
 
-        let content        = UNMutableNotificationContent()
-        content.sound      = .default
-        let turningAge     = person.age + 1
+        let content    = UNMutableNotificationContent()
+        content.sound  = .default
+        let turningAge = person.age + 1
 
         switch daysBefore {
         case 0:
@@ -90,8 +76,8 @@ final class NotificationManager {
             content.title = "🎂 Upcoming Birthday"
             content.body  = "\(person.name)'s birthday is in \(daysBefore) days — they'll be \(turningAge)."
         default:
-            let weeks = daysBefore / 7
-            let extra = daysBefore % 7
+            let weeks   = daysBefore / 7
+            let extra   = daysBefore % 7
             let timeStr = extra == 0
                 ? "\(weeks) week\(weeks == 1 ? "" : "s")"
                 : "\(daysBefore) days"
