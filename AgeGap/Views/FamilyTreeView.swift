@@ -190,7 +190,7 @@ struct FamilyTreeView: View {
             .environment(\.colorScheme, .light)
             .background(Color(.systemBackground).environment(\.colorScheme, .light))
         let renderer = ImageRenderer(content: canvas)
-        renderer.scale = 2.0
+        renderer.scale = 4.0
 
         let tmp = FileManager.default.temporaryDirectory
 
