@@ -265,8 +265,8 @@ final class TreeLayoutEngine {
         var result    = [Int: [FamilyUnit]]()
         var processed = Set<UUID>()
 
-        // Sort alphabetically so grouping is deterministic
-        let sorted = people.sorted { $0.name < $1.name }
+        // Sort oldest → youngest so siblings appear left-to-right by age
+        let sorted = people.sorted { $0.birthday < $1.birthday }
 
         for person in sorted {
             guard let gen = genMap[person.id],
