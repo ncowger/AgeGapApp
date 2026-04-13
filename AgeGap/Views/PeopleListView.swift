@@ -4,9 +4,12 @@ import SwiftData
 struct PeopleListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Person.name) private var people: [Person]
-    @State private var showingAddPerson = false
+    @State private var showingAddPerson    = false
     @State private var selectedPerson: Person?
-    @State private var searchText = ""
+    @State private var searchText          = ""
+    @State private var showingContactPicker = false
+    @State private var importCandidates: [ImportCandidate] = []
+    @State private var showingImportPreview = false
 
     var filteredPeople: [Person] {
         guard !searchText.isEmpty else { return people }
@@ -31,12 +34,42 @@ struct PeopleListView: View {
                         Image(systemName: "plus")
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingContactPicker = true
+                    } label: {
+                        Label("Import", systemImage: "person.crop.circle.badge.plus")
+                    }
+                }
             }
             .sheet(isPresented: $showingAddPerson) {
                 AddEditPersonView()
             }
             .sheet(item: $selectedPerson) { person in
                 AddEditPersonView(person: person)
+            }
+            .sheet(isPresented: $showingContactPicker) {
+                ContactPicker { contacts in
+                    showingContactPicker = false
+                    guard !contacts.isEmpty else { return }
+                    importCandidates = makeImportCandidates(from: contacts, existing: people)
+                    if !importCandidates.isEmpty {
+                        showingImportPreview = true
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showingImportPreview) {
+                ContactImportView(candidates: importCandidates) { selected in
+                    for c in selected {
+                        let person = Person(
+                            name: c.name,
+                            birthday: c.birthday ?? Date()
+                        )
+                        modelContext.insert(person)
+                    }
+                    NotificationManager.shared.rescheduleAll(people: people)
+                }
             }
         }
     }

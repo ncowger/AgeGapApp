@@ -20,6 +20,7 @@
 		AA000000000000000000020A /* FamilyTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010B /* FamilyTreeView.swift */; };
 		AA000000000000000000020B /* TreeLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010C /* TreeLayoutEngine.swift */; };
 		AA000000000000000000020C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010D /* SettingsView.swift */; };
+		AA000000000000000000020D /* ContactImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000010E /* ContactImportView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		AA000000000000000000010B /* FamilyTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTreeView.swift; sourceTree = "<group>"; };
 		AA000000000000000000010C /* TreeLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeLayoutEngine.swift; sourceTree = "<group>"; };
 		AA000000000000000000010D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AA000000000000000000010E /* ContactImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +101,7 @@
 				AA0000000000000000000107 /* UpcomingBirthdaysView.swift */,
 				AA000000000000000000010B /* FamilyTreeView.swift */,
 				AA000000000000000000010D /* SettingsView.swift */,
+				AA000000000000000000010E /* ContactImportView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -193,6 +196,7 @@
 				AA000000000000000000020A /* FamilyTreeView.swift in Sources */,
 				AA000000000000000000020B /* TreeLayoutEngine.swift in Sources */,
 				AA000000000000000000020C /* SettingsView.swift in Sources */,
+				AA000000000000000000020D /* ContactImportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -318,6 +322,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Age Gap";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Import birthdays from your contacts";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo for each family member";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -348,6 +353,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Age Gap";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Import birthdays from your contacts";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo for each family member";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
