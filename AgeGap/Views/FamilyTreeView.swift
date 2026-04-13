@@ -6,7 +6,17 @@ import SwiftData
 private struct ShareSheet: UIViewControllerRepresentable {
     let url: URL
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let avc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // iPad requires a source anchor for the popover — centre it on screen.
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root  = scene.windows.first?.rootViewController {
+            avc.popoverPresentationController?.sourceView = root.view
+            avc.popoverPresentationController?.sourceRect = CGRect(
+                x: root.view.bounds.midX, y: root.view.bounds.midY, width: 0, height: 0
+            )
+            avc.popoverPresentationController?.permittedArrowDirections = []
+        }
+        return avc
     }
     func updateUIViewController(_ uvc: UIActivityViewController, context: Context) {}
 }
