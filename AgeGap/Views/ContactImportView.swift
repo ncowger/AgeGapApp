@@ -189,6 +189,15 @@ func makeImportCandidates(from contacts: [CNContact],
 
 func resolvedBirthday(_ comps: DateComponents?) -> Date? {
     guard var c = comps else { return nil }
-    if c.year == nil { c.year = Calendar.current.component(.year, from: Date()) }
+    if c.year == nil {
+        let cal = Calendar.current
+        c.year = cal.component(.year, from: Date())
+        // If the resulting date is in the future (e.g. Dec birthday, imported in April),
+        // step back to the previous year so the date is always in the past and
+        // compatible with the DatePicker's upper bound of today.
+        if let candidate = cal.date(from: c), candidate > Date() {
+            c.year! -= 1
+        }
+    }
     return Calendar.current.date(from: c)
 }
