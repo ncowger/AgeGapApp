@@ -64,6 +64,8 @@ struct AddEditPersonView: View {
                     TextField("Full Name", text: $name)
                     DatePicker("Birthday", selection: $birthday,
                                displayedComponents: .date)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
                     let currentMe = allPeople.first(where: { $0.isMe && $0.id != person?.id })
                     Toggle("This is me ⭐️", isOn: $isMe)
                     if let currentMe, !isMe {
