@@ -12,9 +12,11 @@ Built with **SwiftUI + SwiftData** (iOS 17+).
 Add anyone with a name, birthday, optional photo, and notes. Assign a **Spouse/Partner**, **Father**, and **Mother** to build the family tree automatically.
 
 - Swipe to delete, tap to edit
-- Mark one person as **Me ⭐️** — they anchor the family tree and "vs Me" analysis
+- Mark one person as **Me ⭐️** — they anchor the family tree and "vs Me" analysis (optional)
 - Spouse links are bidirectional (setting A's spouse to B automatically sets B's spouse to A)
+- Father and Mother can each be set independently — leaving one as None is fully supported
 - Two parents supported per person, enabling blended and divorced family structures
+- **Import from Contacts** — tap the import icon in the People list to browse your Contacts, pick one or more people with birthdays, and import them along with their photos in one step
 
 ---
 
@@ -29,15 +31,15 @@ A chronological list sorted by birth year with two levels of gap info:
 ### 🌳 Family Tree
 A generational tree built automatically from the spouse/parent relationships you define:
 
-- BFS layout engine anchors at **Me** and assigns generations
-- Spouses sit side-by-side, connected by a line
+- BFS layout engine places everyone with at least one relationship in the tree — **Me ⭐️ is optional**
+- Disconnected family groups (e.g. your side and your spouse's side before linking) appear as separate clusters stacked vertically
+- Spouses sit side-by-side, connected by a dashed line
 - Children sorted **oldest to youngest** left to right
 - Parent → child edges drawn as smooth Bézier curves
 - Children with parents in two different family units (blended families) show two separate edges
-- People with no tree links appear in a strip below the tree
+- People with no relationships at all appear in a "Not yet linked" strip below the tree
 - **Pinch to zoom** (0.15× – 4×) and **drag to pan** simultaneously
 - **Tap-to-compare** — same as the timeline, tap any two nodes to see their age gap
-- Tap a single node for a birthday/age detail sheet
 - Toolbar button to reset zoom and position
 
 ---
@@ -93,8 +95,9 @@ AgeGap/
 │   └── TreeLayoutEngine.swift    # BFS generation layout → PositionedPerson / TreeEdge / TreeLayout
 │
 └── Views/
-    ├── PeopleListView.swift           # Searchable people list
+    ├── PeopleListView.swift           # Searchable people list + Contacts import entry point
     ├── AddEditPersonView.swift        # Add/edit form: photo, spouse, father, mother, notes, Me toggle
+    ├── ContactImportView.swift        # CNContactStore browser: search, multi-select, photo import
     ├── BirthdayTimelineView.swift     # Chronological timeline with inline gaps + tap-to-compare card
     ├── FamilyTreeView.swift           # Pinch-to-zoom/pan canvas tree with Bézier edges + tap-to-compare
     ├── AgeGapAnalysisView.swift       # vs-Me · All Pairs gap analysis
@@ -121,16 +124,17 @@ AgeGap/
 
 ## Tips
 
-- **Set a "Me" person first** — the family tree and "vs Me" gap analysis both anchor to whoever has the Me ⭐️ flag set.
-- **Link spouses and parents in the edit sheet** — the tree is built from these structural links.
-- **Blended families** — assign a Father and Mother from different couples; the tree draws two edges to that child and positions them between both parent groups.
+- **"Me" is optional** — the family tree shows all linked people without it, but setting Me ⭐️ unlocks the "vs Me" gap analysis.
+- **Link spouses and parents in the edit sheet** — the tree is built entirely from these structural links.
+- **Blended families** — assign a Father and Mother from different couples; the tree draws two separate edges to that child and positions them between both parent groups. Either parent can be left as None.
+- **Contacts import** — contacts whose birthdays have no year stored are handled gracefully; the app picks a sensible past year and you can correct it with the birthday picker.
+- **Birthday picker** — tap the birthday row in the edit sheet to open a three-wheel month/day/year selector. Tap Cancel to discard changes.
 - **Dark Mode** works throughout; toggle it in iOS Settings or the Xcode simulator via **Features → Toggle Appearance**.
 
 ---
 
 ## Roadmap
 
-- [ ] iCloud sync across devices
-- [ ] Import from Contacts
 - [ ] Export tree as image or PDF
+- [ ] iCloud sync across devices
 - [ ] App Store listing
