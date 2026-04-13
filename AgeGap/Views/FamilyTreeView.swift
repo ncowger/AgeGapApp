@@ -1,6 +1,16 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Share sheet wrapper
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uvc: UIActivityViewController, context: Context) {}
+}
+
 // MARK: - Main View
 
 struct FamilyTreeView: View {
@@ -12,6 +22,12 @@ struct FamilyTreeView: View {
     @State private var lastScale:  CGFloat = 1.0
     @State private var offset:     CGSize  = .zero
     @State private var lastOffset: CGSize  = .zero
+
+    // Export state
+    @State private var showingExportOptions = false
+    @State private var exportedURL: URL?
+    @State private var showingShareSheet   = false
+    @State private var isExporting         = false
 
     private let minScale: CGFloat = 0.15
     private let maxScale: CGFloat = 4.0
@@ -79,15 +95,37 @@ struct FamilyTreeView: View {
             .navigationTitle("Family Tree")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { resetView() } label: {
-                        Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                    HStack(spacing: 16) {
+                        // Export button
+                        if isExporting {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Button { showingExportOptions = true } label: {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                            .disabled(people.isEmpty)
+                        }
+                        // Reset zoom button
+                        Button { resetView() } label: {
+                            Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                        }
+                        .disabled(people.isEmpty)
                     }
-                    .disabled(people.isEmpty)
                 }
                 if !selectedPeople.isEmpty {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Clear") { selectedPeople = [] }
                     }
+                }
+            }
+            .confirmationDialog("Export Tree", isPresented: $showingExportOptions, titleVisibility: .visible) {
+                Button("Export as PNG") { Task { await exportTree(asPDF: false) } }
+                Button("Export as PDF") { Task { await exportTree(asPDF: true)  } }
+                Button("Cancel", role: .cancel) {}
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let url = exportedURL {
+                    ShareSheet(url: url)
                 }
             }
         }
@@ -137,6 +175,42 @@ struct FamilyTreeView: View {
             lastScale  = 1.0
             offset     = .zero
             lastOffset = .zero
+        }
+    }
+
+    // MARK: - Export
+
+    @MainActor
+    private func exportTree(asPDF: Bool) async {
+        isExporting = true
+        defer { isExporting = false }
+
+        // Render without selection highlights at 2× for crisp output
+        let canvas = TreeCanvasView(layout: layout, selectedPeople: [], onTap: { _ in })
+        let renderer = ImageRenderer(content: canvas)
+        renderer.scale = 2.0
+
+        let tmp = FileManager.default.temporaryDirectory
+
+        if asPDF {
+            let url = tmp.appendingPathComponent("FamilyTree.pdf")
+            renderer.render { size, cgContext in
+                var box = CGRect(origin: .zero, size: size)
+                guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else { return }
+                pdf.beginPDFPage(nil)
+                cgContext(pdf)
+                pdf.endPDFPage()
+                pdf.closePDF()
+            }
+            exportedURL      = url
+            showingShareSheet = true
+        } else {
+            guard let img  = renderer.uiImage,
+                  let data = img.pngData() else { return }
+            let url = tmp.appendingPathComponent("FamilyTree.png")
+            try? data.write(to: url)
+            exportedURL      = url
+            showingShareSheet = true
         }
     }
 }
