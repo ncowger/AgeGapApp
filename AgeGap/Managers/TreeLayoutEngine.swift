@@ -69,20 +69,50 @@ final class TreeLayoutEngine {
     // MARK: - Main entry point
 
     func buildLayout() -> TreeLayout {
-        // Anchor on the "Me" person if set, otherwise use the first person
-        guard let me = people.first(where: { $0.isMe }) ?? people.first else {
-            return TreeLayout.empty
+        guard !people.isEmpty else { return TreeLayout.empty }
+
+        // Anchor: "Me" if set, otherwise first person
+        let anchor = people.first(where: { $0.isMe }) ?? people.first!
+
+        // 1. Find all connected components via repeated BFS.
+        //    Anchor's component comes first; additional clusters are stacked below.
+        var visited      = Set<UUID>()
+        var mergedGenMap = [UUID: Int]()
+        var nextOffset   = 0                  // generation row offset for each cluster
+        var pendingStarts: [Person] = [anchor]
+
+        while let start = pendingStarts.first {
+            pendingStarts.removeFirst()
+            guard !visited.contains(start.id) else { continue }
+
+            let relMap = assignGenerations(from: start)
+            guard !relMap.isEmpty else { continue }
+
+            // Shift this cluster so its top row sits at nextOffset
+            let minG  = relMap.values.min()!
+            let maxG  = relMap.values.max()!
+            let shift = nextOffset - minG
+            for (id, gen) in relMap { mergedGenMap[id] = gen + shift }
+            visited.formUnion(relMap.keys)
+
+            // Leave a 2-row gap before the next cluster
+            nextOffset += (maxG - minG) + 2
+
+            // Queue the next unvisited person who has at least one relationship
+            if let next = people.first(where: {
+                !visited.contains($0.id) && hasAnyLink($0)
+            }) {
+                pendingStarts.append(next)
+            }
         }
 
-        // 1. BFS from Me — assign generation numbers to every reachable person
-        let genMap = assignGenerations(from: me)
-        let linkedIDs = Set(genMap.keys)
-        let unlinked  = people.filter { !linkedIDs.contains($0.id) }
+        // Only people with zero relationships of any kind go to the unlinked strip
+        let unlinked = people.filter { !visited.contains($0.id) }
 
-        guard !genMap.isEmpty else { return TreeLayout.empty }
+        guard !mergedGenMap.isEmpty else { return TreeLayout.empty }
 
         // 2. Group people into family units (person + optional spouse) per generation
-        var unitsByGen = groupIntoUnits(genMap: genMap)
+        var unitsByGen = groupIntoUnits(genMap: mergedGenMap)
 
         // 3. Top-down x-position assignment (sort each row by parent position)
         unitsByGen = assignXPositions(unitsByGen: unitsByGen)
@@ -203,6 +233,17 @@ final class TreeLayoutEngine {
             size:     CGSize(width: canvasW, height: canvasH),
             unlinked: unlinked
         )
+    }
+
+    // MARK: - Link detection
+
+    /// True if this person has any relationship that would place them in the tree.
+    private func hasAnyLink(_ person: Person) -> Bool {
+        if person.spouseID  != nil { return true }
+        if person.parent1ID != nil { return true }
+        if person.parent2ID != nil { return true }
+        // Has at least one child in the list
+        return people.contains { $0.parent1ID == person.id || $0.parent2ID == person.id }
     }
 
     // MARK: - Generation assignment (BFS)
