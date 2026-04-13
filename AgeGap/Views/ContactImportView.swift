@@ -61,12 +61,16 @@ struct ContactBrowserView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Import (\(selected.count))") {
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
                         let chosen = allContacts.filter { selected.contains($0.identifier) }
                         onSelect(chosen)
                         dismiss()
+                    } label: {
+                        Text("Import \(selected.count == 0 ? "" : "(\(selected.count))")")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(selected.isEmpty)
                 }
             }
