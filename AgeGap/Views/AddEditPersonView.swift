@@ -119,7 +119,6 @@ struct AddEditPersonView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .disabled(selectedParent1ID == nil)
                 } header: {
                     Text("Family Tree Links")
                 } footer: {
