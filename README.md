@@ -1,8 +1,8 @@
 # AgeGap
 
-An iPhone app for tracking birthdays across your extended family and friend group — with a visual family tree, chronological timeline, age gap analysis, and smart birthday reminders.
+An iPhone and iPad app for tracking birthdays across your extended family and friend group — with a visual family tree, chronological timeline, age gap analysis, and smart birthday reminders.
 
-Built with **SwiftUI + SwiftData** (iOS 17+).
+Built with **SwiftUI + SwiftData** (iOS 17+, iPadOS 17+).
 
 ---
 
@@ -41,6 +41,7 @@ A generational tree built automatically from the spouse/parent relationships you
 - **Pinch to zoom** (0.15× – 4×) and **drag to pan** simultaneously
 - **Tap-to-compare** — same as the timeline, tap any two nodes to see their age gap
 - Toolbar button to reset zoom and position
+- **Export** — tap the share icon to export the tree as a PNG or PDF; rendered at 4× resolution in light mode for crisp, readable output regardless of device appearance
 
 ---
 
@@ -76,7 +77,9 @@ Upcoming birthdays sorted by days remaining. Today's birthdays are highlighted a
 | UI | SwiftUI |
 | Persistence | SwiftData (`@Model`) |
 | Notifications | `UNUserNotificationCenter` (repeating annual triggers) |
-| Minimum iOS | 17.0 |
+| Export | `ImageRenderer` + `UIGraphicsPDFRenderer` |
+| Minimum OS | iOS 17.0 / iPadOS 17.0 |
+| Devices | iPhone + iPad (native) |
 
 ---
 
@@ -117,7 +120,7 @@ AgeGap/
    ```
 3. Open `AgeGap.xcodeproj` in Xcode
 4. Select the **AgeGap** target → **Signing & Capabilities** → set your Team (a free Apple ID works for the simulator and personal device testing)
-5. Choose an iPhone simulator (iOS 17+) or your connected device
+5. Choose an iPhone or iPad simulator (iOS/iPadOS 17+) or your connected device
 6. Press **⌘R**
 
 ---
@@ -129,12 +132,13 @@ AgeGap/
 - **Blended families** — assign a Father and Mother from different couples; the tree draws two separate edges to that child and positions them between both parent groups. Either parent can be left as None.
 - **Contacts import** — contacts whose birthdays have no year stored are handled gracefully; the app picks a sensible past year and you can correct it with the birthday picker.
 - **Birthday picker** — tap the birthday row in the edit sheet to open a three-wheel month/day/year selector. Tap Cancel to discard changes.
+- **iPad** — the app runs natively on iPad at full screen. The family tree especially benefits from the larger canvas.
+- **Export** — exports are always rendered in light mode at 4× resolution so they look sharp when shared or printed, regardless of your device's appearance setting.
 - **Dark Mode** works throughout; toggle it in iOS Settings or the Xcode simulator via **Features → Toggle Appearance**.
 
 ---
 
 ## Roadmap
 
-- [ ] Export tree as image or PDF
 - [ ] iCloud sync across devices
 - [ ] App Store listing
