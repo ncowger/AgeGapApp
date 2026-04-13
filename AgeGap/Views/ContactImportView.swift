@@ -5,7 +5,6 @@ import ContactsUI
 // MARK: - CNContactPickerViewController wrapper
 
 struct ContactPicker: UIViewControllerRepresentable {
-    /// Called with the contacts the user selected
     var onSelect: ([CNContact]) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect) }
@@ -13,10 +12,6 @@ struct ContactPicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> CNContactPickerViewController {
         let picker = CNContactPickerViewController()
         picker.delegate = context.coordinator
-        // Fetch name + birthday
-        picker.displayedPropertyKeys = [CNContactGivenNameKey,
-                                        CNContactFamilyNameKey,
-                                        CNContactBirthdayKey]
         return picker
     }
 
@@ -27,12 +22,16 @@ struct ContactPicker: UIViewControllerRepresentable {
         let onSelect: ([CNContact]) -> Void
         init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
 
-        // The picker returns partial contacts — re-fetch with birthday key explicitly
+        // Re-fetch with explicit keys so birthday + photo are populated
         private func refetch(_ contacts: [CNContact]) -> [CNContact] {
             let store = CNContactStore()
-            let keys  = [CNContactGivenNameKey,
-                         CNContactFamilyNameKey,
-                         CNContactBirthdayKey] as [CNKeyDescriptor]
+            let keys: [CNKeyDescriptor] = [
+                CNContactGivenNameKey       as CNKeyDescriptor,
+                CNContactFamilyNameKey      as CNKeyDescriptor,
+                CNContactBirthdayKey        as CNKeyDescriptor,
+                CNContactImageDataKey       as CNKeyDescriptor,
+                CNContactImageDataAvailableKey as CNKeyDescriptor,
+            ]
             return contacts.compactMap {
                 try? store.unifiedContact(withIdentifier: $0.identifier, keysToFetch: keys)
             }
@@ -78,6 +77,9 @@ struct ContactImportView: View {
                                 .foregroundStyle(selected.contains(c.id) ? .blue : .secondary)
                                 .font(.title3)
 
+                            // Contact photo or initials
+                            contactAvatar(c)
+
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(c.name).font(.headline)
                                 if let bd = c.birthday {
@@ -118,27 +120,42 @@ struct ContactImportView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import (\(selected.count))") {
-                        let toImport = candidates.filter { selected.contains($0.id) }
-                        onImport(toImport)
+                        onImport(candidates.filter { selected.contains($0.id) })
                         dismiss()
                     }
                     .disabled(selected.isEmpty)
                 }
             }
             .onAppear {
-                // Pre-select all non-duplicate candidates
                 selected = Set(candidates.filter { !$0.alreadyExists }.map { $0.id })
             }
         }
+    }
+
+    @ViewBuilder
+    private func contactAvatar(_ c: ImportCandidate) -> some View {
+        Group {
+            if let data = c.photoData, let img = UIImage(data: data) {
+                Image(uiImage: img).resizable().scaledToFill()
+            } else {
+                Text(c.name.prefix(2).uppercased())
+                    .font(.subheadline).bold().foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.gray)
+            }
+        }
+        .frame(width: 36, height: 36)
+        .clipShape(Circle())
     }
 }
 
 // MARK: - Import candidate model
 
 struct ImportCandidate: Identifiable {
-    let id = UUID()
-    let name: String
+    let id       = UUID()
+    let name:    String
     let birthday: Date?
+    let photoData: Data?
     let alreadyExists: Bool
 }
 
@@ -147,15 +164,15 @@ struct ImportCandidate: Identifiable {
 func makeImportCandidates(from contacts: [CNContact],
                           existing: [Person]) -> [ImportCandidate] {
     let existingNames = Set(existing.map { $0.name.lowercased() })
-    return contacts.map { contact in
+    return contacts.compactMap { contact -> ImportCandidate? in
         let name = [contact.givenName, contact.familyName]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return nil }
 
         let birthday: Date? = {
             guard let comps = contact.birthday else { return nil }
-            // Use current year if none stored (common in Contacts)
             var resolved = comps
             if resolved.year == nil {
                 resolved.year = Calendar.current.component(.year, from: Date())
@@ -163,12 +180,14 @@ func makeImportCandidates(from contacts: [CNContact],
             return Calendar.current.date(from: resolved)
         }()
 
+        let photoData: Data? = contact.imageDataAvailable ? contact.imageData : nil
+
         return ImportCandidate(
-            name: name.isEmpty ? "Unknown" : name,
+            name: name,
             birthday: birthday,
+            photoData: photoData,
             alreadyExists: existingNames.contains(name.lowercased())
         )
     }
-    .filter { !$0.name.isEmpty && $0.name != "Unknown" }
     .sorted { ($0.birthday ?? .distantFuture) < ($1.birthday ?? .distantFuture) }
 }
