@@ -21,7 +21,8 @@ struct AddEditPersonView: View {
     @State private var selectedParent1ID: UUID?
     @State private var selectedParent2ID: UUID?
 
-    @State private var showingDatePicker = false
+    @State private var showingDatePicker  = false
+    @State private var pendingBirthday:   Date = Date()
 
     var isEditing: Bool { person != nil }
 
@@ -68,17 +69,12 @@ struct AddEditPersonView: View {
                         Text("Birthday")
                         Spacer()
                         Text(birthday.formatted(.dateTime.month(.wide).day().year()))
-                            .foregroundStyle(showingDatePicker ? .blue : .secondary)
+                            .foregroundStyle(.blue)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { withAnimation { showingDatePicker.toggle() } }
-
-                    if showingDatePicker {
-                        DatePicker("Birthday", selection: $birthday,
-                                   displayedComponents: .date)
-                            .datePickerStyle(.wheel)
-                            .labelsHidden()
-                            .frame(maxWidth: .infinity)
+                    .onTapGesture {
+                        pendingBirthday = birthday
+                        showingDatePicker = true
                     }
                     let currentMe = allPeople.first(where: { $0.isMe && $0.id != person?.id })
                     Toggle("This is me ⭐️", isOn: $isMe)
@@ -151,6 +147,32 @@ struct AddEditPersonView: View {
                 }
             }
             .onAppear { populateFromExisting() }
+            .sheet(isPresented: $showingDatePicker) {
+                NavigationStack {
+                    VStack(spacing: 0) {
+                        DatePicker("Birthday", selection: $pendingBirthday,
+                                   in: ...Date(),
+                                   displayedComponents: .date)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .padding()
+                    }
+                    .navigationTitle("Birthday")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showingDatePicker = false }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                birthday = pendingBirthday
+                                showingDatePicker = false
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.height(300)])
+            }
         }
     }
 

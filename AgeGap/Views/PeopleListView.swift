@@ -49,12 +49,13 @@ struct PeopleListView: View {
             .sheet(isPresented: $showingContactPicker) {
                 ContactBrowserView(existing: people) { contacts in
                     guard !contacts.isEmpty else { return }
+                    let thirtyYearsAgo = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
                     for contact in contacts {
                         let name = "\(contact.givenName) \(contact.familyName)"
                             .trimmingCharacters(in: .whitespaces)
                         let person = Person(
                             name: name,
-                            birthday: resolvedBirthday(contact.birthday) ?? Date()
+                            birthday: resolvedBirthday(contact.birthday) ?? thirtyYearsAgo
                         )
                         person.photoData = contact.imageDataAvailable ? contact.imageData : nil
                         modelContext.insert(person)
