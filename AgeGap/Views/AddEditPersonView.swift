@@ -21,6 +21,8 @@ struct AddEditPersonView: View {
     @State private var selectedParent1ID: UUID?
     @State private var selectedParent2ID: UUID?
 
+    @State private var showingDatePicker = false
+
     var isEditing: Bool { person != nil }
 
     private var linkablePeople: [Person] {
@@ -62,10 +64,22 @@ struct AddEditPersonView: View {
                 // ── Details ────────────────────────────────────────────
                 Section("Details") {
                     TextField("Full Name", text: $name)
-                    DatePicker("Birthday", selection: $birthday,
-                               displayedComponents: .date)
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
+                    HStack {
+                        Text("Birthday")
+                        Spacer()
+                        Text(birthday.formatted(.dateTime.month(.wide).day().year()))
+                            .foregroundStyle(showingDatePicker ? .blue : .secondary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation { showingDatePicker.toggle() } }
+
+                    if showingDatePicker {
+                        DatePicker("Birthday", selection: $birthday,
+                                   displayedComponents: .date)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity)
+                    }
                     let currentMe = allPeople.first(where: { $0.isMe && $0.id != person?.id })
                     Toggle("This is me ⭐️", isOn: $isMe)
                     if let currentMe, !isMe {
