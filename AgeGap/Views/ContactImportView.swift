@@ -27,15 +27,24 @@ struct ContactPicker: UIViewControllerRepresentable {
         let onSelect: ([CNContact]) -> Void
         init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
 
-        // Multi-select
+        // The picker returns partial contacts — re-fetch with birthday key explicitly
+        private func refetch(_ contacts: [CNContact]) -> [CNContact] {
+            let store = CNContactStore()
+            let keys  = [CNContactGivenNameKey,
+                         CNContactFamilyNameKey,
+                         CNContactBirthdayKey] as [CNKeyDescriptor]
+            return contacts.compactMap {
+                try? store.unifiedContact(withIdentifier: $0.identifier, keysToFetch: keys)
+            }
+        }
+
         func contactPicker(_ picker: CNContactPickerViewController,
                            didSelect contacts: [CNContact]) {
-            onSelect(contacts)
+            onSelect(refetch(contacts))
         }
-        // Single-select fallback
         func contactPicker(_ picker: CNContactPickerViewController,
                            didSelect contact: CNContact) {
-            onSelect([contact])
+            onSelect(refetch([contact]))
         }
         func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
             onSelect([])
