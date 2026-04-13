@@ -9,8 +9,6 @@ struct PeopleListView: View {
     @State private var selectedPerson: Person?
     @State private var searchText          = ""
     @State private var showingContactPicker  = false
-    @State private var importCandidates: [ImportCandidate] = []
-    @State private var showingImportPreview  = false
     @State private var showingContactsDenied = false
 
     var filteredPeople: [Person] {
@@ -49,21 +47,16 @@ struct PeopleListView: View {
                 AddEditPersonView(person: person)
             }
             .sheet(isPresented: $showingContactPicker) {
-                ContactPicker { contacts in
-                    showingContactPicker = false
+                ContactBrowserView(existing: people) { contacts in
                     guard !contacts.isEmpty else { return }
-                    importCandidates = makeImportCandidates(from: contacts, existing: people)
-                    if !importCandidates.isEmpty {
-                        showingImportPreview = true
-                    }
-                }
-                .ignoresSafeArea()
-            }
-            .sheet(isPresented: $showingImportPreview) {
-                ContactImportView(candidates: importCandidates) { selected in
-                    for c in selected {
-                        let person = Person(name: c.name, birthday: c.birthday ?? Date())
-                        person.photoData = c.photoData
+                    for contact in contacts {
+                        let name = "\(contact.givenName) \(contact.familyName)"
+                            .trimmingCharacters(in: .whitespaces)
+                        let person = Person(
+                            name: name,
+                            birthday: resolvedBirthday(contact.birthday) ?? Date()
+                        )
+                        person.photoData = contact.imageDataAvailable ? contact.imageData : nil
                         modelContext.insert(person)
                     }
                     NotificationManager.shared.rescheduleAll(people: people)

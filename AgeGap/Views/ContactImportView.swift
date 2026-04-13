@@ -1,142 +1,61 @@
 import SwiftUI
 import Contacts
-import ContactsUI
 
-// MARK: - CNContactPickerViewController wrapper
+// MARK: - Custom Contact Browser
+// Queries CNContactStore directly — avoids CNContactPickerViewController's
+// iOS 18 "Share with App" timing race where the delegate fires before
+// the system grants access to refetch full contact data.
 
-struct ContactPicker: UIViewControllerRepresentable {
-    var onSelect: ([CNContact]) -> Void
+struct ContactBrowserView: View {
+    let existing: [Person]
+    let onSelect: ([CNContact]) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect) }
-
-    func makeUIViewController(context: Context) -> CNContactPickerViewController {
-        let picker = CNContactPickerViewController()
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: CNContactPickerViewController,
-                                context: Context) {}
-
-    class Coordinator: NSObject, CNContactPickerDelegate {
-        let onSelect: ([CNContact]) -> Void
-        init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
-
-        private let keys: [CNKeyDescriptor] = [
-            CNContactGivenNameKey          as CNKeyDescriptor,
-            CNContactFamilyNameKey         as CNKeyDescriptor,
-            CNContactBirthdayKey           as CNKeyDescriptor,
-            CNContactImageDataKey          as CNKeyDescriptor,
-            CNContactImageDataAvailableKey as CNKeyDescriptor,
-        ]
-
-        // Re-fetch with explicit keys so birthday + photo are populated.
-        // On iOS 18 the system "Share with App" dialog fires AFTER the picker
-        // closes, so we delay 0.6s to let it resolve before querying the store.
-        // If the identifier-based fetch still fails (limited access), we fall
-        // back to a name-based search before giving up.
-        private func refetchDelayed(_ contacts: [CNContact]) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                let store = CNContactStore()
-                let result = contacts.map { contact -> CNContact in
-                    // 1. Try identifier-based fetch (fastest, most accurate)
-                    if let c = try? store.unifiedContact(
-                            withIdentifier: contact.identifier,
-                            keysToFetch: self.keys) {
-                        return c
-                    }
-                    // 2. Fall back to name search (handles iOS 18 limited access)
-                    let fullName = "\(contact.givenName) \(contact.familyName)"
-                        .trimmingCharacters(in: .whitespaces)
-                    let pred = CNContact.predicateForContacts(matchingName: fullName)
-                    if let c = try? store.unifiedContacts(
-                            matching: pred,
-                            keysToFetch: self.keys).first {
-                        return c
-                    }
-                    // 3. Return the original partial contact as a last resort
-                    return contact
-                }
-                self.onSelect(result)
-            }
-        }
-
-        func contactPicker(_ picker: CNContactPickerViewController,
-                           didSelect contacts: [CNContact]) {
-            refetchDelayed(contacts)
-        }
-        func contactPicker(_ picker: CNContactPickerViewController,
-                           didSelect contact: CNContact) {
-            refetchDelayed([contact])
-        }
-        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
-            onSelect([])
-        }
-    }
-}
-
-// MARK: - Import preview sheet
-
-struct ContactImportView: View {
-    let candidates: [ImportCandidate]
-    let onImport: ([ImportCandidate]) -> Void
-
-    @State private var selected: Set<UUID> = []
     @Environment(\.dismiss) private var dismiss
+    @State private var allContacts: [CNContact] = []
+    @State private var selected:    Set<String>  = []   // contact identifiers
+    @State private var isLoading    = true
+    @State private var searchText   = ""
+
+    private static let keys: [CNKeyDescriptor] = [
+        CNContactGivenNameKey          as CNKeyDescriptor,
+        CNContactFamilyNameKey         as CNKeyDescriptor,
+        CNContactBirthdayKey           as CNKeyDescriptor,
+        CNContactImageDataKey          as CNKeyDescriptor,
+        CNContactImageDataAvailableKey as CNKeyDescriptor,
+    ]
+
+    private var filtered: [CNContact] {
+        guard !searchText.isEmpty else { return allContacts }
+        let q = searchText.lowercased()
+        return allContacts.filter {
+            "\($0.givenName) \($0.familyName)".lowercased().contains(q)
+        }
+    }
+
+    private var existingNames: Set<String> {
+        Set(existing.map { $0.name.lowercased() })
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if candidates.isEmpty {
+                if isLoading {
+                    ProgressView("Loading contacts…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if allContacts.isEmpty {
                     ContentUnavailableView(
-                        "No Birthdays Found",
-                        systemImage: "birthday.cake",
-                        description: Text("None of the selected contacts have a birthday saved.")
+                        "No Contacts with Birthdays",
+                        systemImage: "person.crop.circle.badge.exclamationmark",
+                        description: Text("Add birthdays to your contacts in the Contacts app first.")
                     )
                 } else {
-                    List(candidates) { c in
-                        HStack(spacing: 12) {
-                            Image(systemName: selected.contains(c.id)
-                                  ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(selected.contains(c.id) ? .blue : .secondary)
-                                .font(.title3)
-
-                            // Contact photo or initials
-                            contactAvatar(c)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(c.name).font(.headline)
-                                if let bd = c.birthday {
-                                    Text(bd.formatted(.dateTime.month(.wide).day().year()))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                } else {
-                                    Text("No birthday — will use today's date")
-                                        .font(.caption).foregroundStyle(.orange)
-                                }
-                            }
-
-                            Spacer()
-
-                            if c.alreadyExists {
-                                Text("Already added")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 6).padding(.vertical, 3)
-                                    .background(Color(.systemGray5))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            guard !c.alreadyExists else { return }
-                            if selected.contains(c.id) { selected.remove(c.id) }
-                            else { selected.insert(c.id) }
-                        }
-                        .opacity(c.alreadyExists ? 0.45 : 1)
+                    List(filtered, id: \.identifier) { contact in
+                        contactRow(contact)
                     }
+                    .searchable(text: $searchText, prompt: "Search contacts")
                 }
             }
-            .navigationTitle("Import Contacts")
+            .navigationTitle("Choose Contacts")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -144,74 +63,137 @@ struct ContactImportView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import (\(selected.count))") {
-                        onImport(candidates.filter { selected.contains($0.id) })
+                        let chosen = allContacts.filter { selected.contains($0.identifier) }
+                        onSelect(chosen)
                         dismiss()
                     }
                     .disabled(selected.isEmpty)
                 }
             }
-            .onAppear {
-                selected = Set(candidates.filter { !$0.alreadyExists }.map { $0.id })
-            }
+            .onAppear(perform: loadContacts)
         }
     }
 
     @ViewBuilder
-    private func contactAvatar(_ c: ImportCandidate) -> some View {
-        Group {
-            if let data = c.photoData, let img = UIImage(data: data) {
-                Image(uiImage: img).resizable().scaledToFill()
-            } else {
-                Text(c.name.prefix(2).uppercased())
-                    .font(.subheadline).bold().foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.gray)
+    private func contactRow(_ contact: CNContact) -> some View {
+        let name      = "\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespaces)
+        let isDupe    = existingNames.contains(name.lowercased())
+        let isChosen  = selected.contains(contact.identifier)
+
+        HStack(spacing: 12) {
+            Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isChosen ? .blue : .secondary)
+                .font(.title3)
+
+            // Avatar
+            Group {
+                if contact.imageDataAvailable, let data = contact.imageData,
+                   let img = UIImage(data: data) {
+                    Image(uiImage: img).resizable().scaledToFill()
+                } else {
+                    Text(String(name.prefix(2)).uppercased())
+                        .font(.subheadline).bold().foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.gray)
+                }
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.headline)
+                if let bd = resolvedBirthday(contact.birthday) {
+                    Text(bd.formatted(.dateTime.month(.wide).day().year()))
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("No birthday stored")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
+
+            Spacer()
+
+            if isDupe {
+                Text("Already added")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(Color(.systemGray5))
+                    .clipShape(Capsule())
             }
         }
-        .frame(width: 36, height: 36)
-        .clipShape(Circle())
+        .opacity(isDupe ? 0.45 : 1)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isDupe else { return }
+            if isChosen { selected.remove(contact.identifier) }
+            else        { selected.insert(contact.identifier) }
+        }
+    }
+
+    // MARK: - Load contacts from store
+
+    private func loadContacts() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let store   = CNContactStore()
+            let request = CNContactFetchRequest(keysToFetch: Self.keys)
+            var result: [CNContact] = []
+            try? store.enumerateContacts(with: request) { contact, _ in
+                let name = "\(contact.givenName) \(contact.familyName)"
+                    .trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { return }
+                result.append(contact)
+            }
+            result.sort {
+                "\($0.givenName) \($0.familyName)" < "\($1.givenName) \($1.familyName)"
+            }
+            DispatchQueue.main.async {
+                allContacts = result
+                // Pre-select contacts with birthdays that aren't already in the app
+                selected = Set(result
+                    .filter { $0.birthday != nil }
+                    .filter {
+                        let name = "\($0.givenName) \($0.familyName)"
+                            .trimmingCharacters(in: .whitespaces).lowercased()
+                        return !existingNames.contains(name)
+                    }
+                    .map { $0.identifier })
+                isLoading = false
+            }
+        }
     }
 }
 
 // MARK: - Import candidate model
 
 struct ImportCandidate: Identifiable {
-    let id       = UUID()
-    let name:    String
+    let id        = UUID()
+    let name:     String
     let birthday: Date?
     let photoData: Data?
     let alreadyExists: Bool
 }
 
-// MARK: - CNContact → ImportCandidate helper
+// MARK: - Helpers
 
 func makeImportCandidates(from contacts: [CNContact],
                           existing: [Person]) -> [ImportCandidate] {
     let existingNames = Set(existing.map { $0.name.lowercased() })
     return contacts.compactMap { contact -> ImportCandidate? in
-        let name = [contact.givenName, contact.familyName]
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let name = "\(contact.givenName) \(contact.familyName)"
             .trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return nil }
-
-        let birthday: Date? = {
-            guard let comps = contact.birthday else { return nil }
-            var resolved = comps
-            if resolved.year == nil {
-                resolved.year = Calendar.current.component(.year, from: Date())
-            }
-            return Calendar.current.date(from: resolved)
-        }()
-
         let photoData: Data? = contact.imageDataAvailable ? contact.imageData : nil
-
         return ImportCandidate(
-            name: name,
-            birthday: birthday,
-            photoData: photoData,
+            name:         name,
+            birthday:     resolvedBirthday(contact.birthday),
+            photoData:    photoData,
             alreadyExists: existingNames.contains(name.lowercased())
         )
     }
-    .sorted { ($0.birthday ?? .distantFuture) < ($1.birthday ?? .distantFuture) }
+}
+
+func resolvedBirthday(_ comps: DateComponents?) -> Date? {
+    guard var c = comps else { return nil }
+    if c.year == nil { c.year = Calendar.current.component(.year, from: Date()) }
+    return Calendar.current.date(from: c)
 }
