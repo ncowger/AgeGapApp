@@ -140,5 +140,6 @@ AgeGap/
 
 ## Roadmap
 
+- [ ] Monetization strategy (e.g. one-time purchase, tip jar, or premium features)
 - [ ] iCloud sync across devices
 - [ ] App Store listing
