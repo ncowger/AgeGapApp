@@ -22,28 +22,52 @@ struct ContactPicker: UIViewControllerRepresentable {
         let onSelect: ([CNContact]) -> Void
         init(onSelect: @escaping ([CNContact]) -> Void) { self.onSelect = onSelect }
 
-        // Re-fetch with explicit keys so birthday + photo are populated
-        private func refetch(_ contacts: [CNContact]) -> [CNContact] {
-            let store = CNContactStore()
-            let keys: [CNKeyDescriptor] = [
-                CNContactGivenNameKey       as CNKeyDescriptor,
-                CNContactFamilyNameKey      as CNKeyDescriptor,
-                CNContactBirthdayKey        as CNKeyDescriptor,
-                CNContactImageDataKey       as CNKeyDescriptor,
-                CNContactImageDataAvailableKey as CNKeyDescriptor,
-            ]
-            return contacts.compactMap {
-                try? store.unifiedContact(withIdentifier: $0.identifier, keysToFetch: keys)
+        private let keys: [CNKeyDescriptor] = [
+            CNContactGivenNameKey          as CNKeyDescriptor,
+            CNContactFamilyNameKey         as CNKeyDescriptor,
+            CNContactBirthdayKey           as CNKeyDescriptor,
+            CNContactImageDataKey          as CNKeyDescriptor,
+            CNContactImageDataAvailableKey as CNKeyDescriptor,
+        ]
+
+        // Re-fetch with explicit keys so birthday + photo are populated.
+        // On iOS 18 the system "Share with App" dialog fires AFTER the picker
+        // closes, so we delay 0.6s to let it resolve before querying the store.
+        // If the identifier-based fetch still fails (limited access), we fall
+        // back to a name-based search before giving up.
+        private func refetchDelayed(_ contacts: [CNContact]) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                let store = CNContactStore()
+                let result = contacts.map { contact -> CNContact in
+                    // 1. Try identifier-based fetch (fastest, most accurate)
+                    if let c = try? store.unifiedContact(
+                            withIdentifier: contact.identifier,
+                            keysToFetch: self.keys) {
+                        return c
+                    }
+                    // 2. Fall back to name search (handles iOS 18 limited access)
+                    let fullName = "\(contact.givenName) \(contact.familyName)"
+                        .trimmingCharacters(in: .whitespaces)
+                    let pred = CNContact.predicateForContacts(matchingName: fullName)
+                    if let c = try? store.unifiedContacts(
+                            matching: pred,
+                            keysToFetch: self.keys).first {
+                        return c
+                    }
+                    // 3. Return the original partial contact as a last resort
+                    return contact
+                }
+                self.onSelect(result)
             }
         }
 
         func contactPicker(_ picker: CNContactPickerViewController,
                            didSelect contacts: [CNContact]) {
-            onSelect(refetch(contacts))
+            refetchDelayed(contacts)
         }
         func contactPicker(_ picker: CNContactPickerViewController,
                            didSelect contact: CNContact) {
-            onSelect(refetch([contact]))
+            refetchDelayed([contact])
         }
         func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
             onSelect([])
