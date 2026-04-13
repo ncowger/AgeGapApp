@@ -185,8 +185,10 @@ struct FamilyTreeView: View {
         isExporting = true
         defer { isExporting = false }
 
-        // Render without selection highlights at 2× for crisp output
+        // Render without selection highlights at 2× for crisp output, always in light mode
         let canvas = TreeCanvasView(layout: layout, selectedPeople: [], onTap: { _ in })
+            .environment(\.colorScheme, .light)
+            .background(Color(.systemBackground).environment(\.colorScheme, .light))
         let renderer = ImageRenderer(content: canvas)
         renderer.scale = 2.0
 
