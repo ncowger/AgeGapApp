@@ -148,15 +148,6 @@ struct ContactBrowserView: View {
             }
             DispatchQueue.main.async {
                 allContacts = result
-                // Pre-select contacts with birthdays that aren't already in the app
-                selected = Set(result
-                    .filter { $0.birthday != nil }
-                    .filter {
-                        let name = "\($0.givenName) \($0.familyName)"
-                            .trimmingCharacters(in: .whitespaces).lowercased()
-                        return !existingNames.contains(name)
-                    }
-                    .map { $0.identifier })
                 isLoading = false
             }
         }
