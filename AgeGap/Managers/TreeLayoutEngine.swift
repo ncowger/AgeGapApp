@@ -69,13 +69,9 @@ final class TreeLayoutEngine {
     // MARK: - Main entry point
 
     func buildLayout() -> TreeLayout {
-        guard let me = people.first(where: { $0.isMe }) else {
-            // No "Me" — put everyone in unlinked section
-            return TreeLayout(
-                people: [], edges: [],
-                size: CGSize(width: 400, height: 200),
-                unlinked: people
-            )
+        // Anchor on the "Me" person if set, otherwise use the first person
+        guard let me = people.first(where: { $0.isMe }) ?? people.first else {
+            return TreeLayout.empty
         }
 
         // 1. BFS from Me — assign generation numbers to every reachable person

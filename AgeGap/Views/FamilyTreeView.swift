@@ -29,19 +29,6 @@ struct FamilyTreeView: View {
                         systemImage: "figure.2.and.child.holdinghands",
                         description: Text("Add people in the People tab to build your family tree")
                     )
-                } else if people.first(where: { $0.isMe }) == nil {
-                    VStack(spacing: 16) {
-                        Image(systemName: "person.crop.circle.badge.questionmark")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.secondary)
-                        Text("Add yourself first")
-                            .font(.headline)
-                        Text("Tag one person as **Me** to anchor the family tree.\nEveryone else connects through you.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
                 } else {
                     // Zoomable + pannable tree canvas
                     GeometryReader { geo in
