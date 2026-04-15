@@ -38,7 +38,27 @@ struct ContactBrowserView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                // Search bar lives in the view body — never displaced by the keyboard
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search contacts", text: $searchText)
+                        .autocorrectionDisabled()
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(8)
+                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                Divider()
+
                 if isLoading {
                     ProgressView("Loading contacts…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,11 +68,13 @@ struct ContactBrowserView: View {
                         systemImage: "person.crop.circle.badge.exclamationmark",
                         description: Text("Add birthdays to your contacts in the Contacts app first.")
                     )
+                } else if filtered.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
                     List(filtered, id: \.identifier) { contact in
                         contactRow(contact)
                     }
-                    .searchable(text: $searchText, prompt: "Search contacts")
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("Choose Contacts")
