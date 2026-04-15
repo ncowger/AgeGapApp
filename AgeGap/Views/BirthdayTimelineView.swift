@@ -182,14 +182,14 @@ private struct HorizontalTimelineView: View {
                                 let dotR: CGFloat = 3.5
                                 let dot = Path(ellipseIn: CGRect(x: px - dotR, y: axisY - dotR,
                                                                   width: dotR * 2, height: dotR * 2))
-                                ctx.fill(dot, with: .color(sel ? .color(.orange) : .color(.secondary.opacity(0.55))))
+                                ctx.fill(dot, with: .color(sel ? Color.orange : Color.secondary.opacity(0.55)))
 
                                 // Dashed stem from dot to circle bottom
                                 var stem = Path()
                                 stem.move(to: .init(x: px, y: axisY - dotR * 2))
                                 stem.addLine(to: .init(x: px, y: circleTop + nodeSize + 2))
                                 ctx.stroke(stem,
-                                           with: .color(sel ? .color(.orange.opacity(0.55)) : .color(.secondary.opacity(0.28))),
+                                           with: .color(sel ? Color.orange.opacity(0.55) : Color.secondary.opacity(0.28)),
                                            style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
                             }
                         }
