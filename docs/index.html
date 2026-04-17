@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Age Gap — Family Birthday Tracker</title>
+  <style>
+    :root {
+      --accent: #4F7FFF;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --bg: #0f172a;
+        --card: #1e293b;
+        --border: #334155;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 72px 24px 48px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .app-icon {
+      width: 120px;
+      height: 120px;
+      border-radius: 26px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.15);
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--muted);
+      margin-top: 12px;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 28px;
+      background: var(--accent);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      opacity: 0.6;
+      cursor: default;
+    }
+    .badge-note {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* ── Features ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 900px;
+      margin: 48px auto;
+      padding: 0 24px;
+    }
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 24px;
+    }
+    .feature-icon { font-size: 2rem; margin-bottom: 12px; }
+    .feature h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+    .feature p  { font-size: 0.9rem; color: var(--muted); }
+
+    /* ── Support ── */
+    .support {
+      max-width: 640px;
+      margin: 0 auto 48px;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .support h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; }
+    .support p  { color: var(--muted); font-size: 0.95rem; }
+    .support a  { color: var(--accent); text-decoration: none; }
+    .support a:hover { text-decoration: underline; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <img class="app-icon" src="icon.png" alt="Age Gap app icon" onerror="this.style.display='none'" />
+    <h1>Age Gap</h1>
+    <p>Track birthdays across your entire family — and discover the age gaps between everyone.</p>
+    <span class="badge">Coming to the App Store</span>
+    <span class="badge-note">iPhone &amp; iPad · iOS 17+</span>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="feature-icon">🌳</div>
+      <h3>Family Tree</h3>
+      <p>Build a visual family tree automatically from spouse and parent links. Supports blended families. Export as PNG or PDF.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📅</div>
+      <h3>Birthday Timeline</h3>
+      <p>See everyone in chronological order with precise age gaps between entries. Rotate to landscape for a horizontal history-style view.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📊</div>
+      <h3>Age Gap Analysis</h3>
+      <p>Compare everyone against yourself or browse every pairing. See gaps in exact years, months, and days.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎂</div>
+      <h3>Upcoming Birthdays</h3>
+      <p>Never miss a birthday. Reminders on the day or in advance, plus a monthly summary notification.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📇</div>
+      <h3>Import from Contacts</h3>
+      <p>Browse your Contacts and import people in one tap — photos included. No manual entry required.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔒</div>
+      <h3>Private by Design</h3>
+      <p>All data lives only on your device. No account required. Nothing leaves your phone.</p>
+    </div>
+  </section>
+
+  <section class="support">
+    <h2>Support</h2>
+    <p>
+      Found a bug or have a feature request? Open an issue on
+      <a href="https://github.com/ncowger/AgeGapApp/issues" target="_blank">GitHub</a>
+      or email
+      <a href="mailto:support@agegapapp.com">support@agegapapp.com</a>.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      &copy; 2025 Age Gap &nbsp;·&nbsp;
+      <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="https://github.com/ncowger/AgeGapApp" target="_blank">GitHub</a>
+    </p>
+  </footer>
+
+</body>
+</html>
