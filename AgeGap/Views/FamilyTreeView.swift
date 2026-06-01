@@ -39,11 +39,19 @@ struct FamilyTreeView: View {
     @State private var showingShareSheet   = false
     @State private var isExporting         = false
 
+    // Detail sheet (long-press a node)
+    @State private var detailPerson: Person?
+
     private let minScale: CGFloat = 0.15
     private let maxScale: CGFloat = 4.0
 
-    private var layout: TreeLayout {
-        TreeLayoutEngine(people: people).buildLayout()
+    // Cached layout — only recomputed when people or their relationships change,
+    // NOT on every pan/zoom render frame.
+    @State private var layout: TreeLayout = .empty
+    private var layoutKey: String {
+        people.map {
+            "\($0.id)\($0.spouseID?.uuidString ?? "")\($0.parent1ID?.uuidString ?? "")\($0.parent2ID?.uuidString ?? "")"
+        }.joined()
     }
 
     var body: some View {
@@ -61,7 +69,8 @@ struct FamilyTreeView: View {
                         TreeCanvasView(
                             layout: layout,
                             selectedPeople: selectedPeople,
-                            onTap: { handleTap($0) }
+                            onTap: { handleTap($0) },
+                            onLongPress: { detailPerson = $0 }
                         )
                         .scaleEffect(scale, anchor: .center)
                         .offset(offset)
@@ -104,9 +113,8 @@ struct FamilyTreeView: View {
             }
             .navigationTitle("Family Tree")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 16) {
-                        // Export button
                         if isExporting {
                             ProgressView().scaleEffect(0.8)
                         } else {
@@ -115,7 +123,6 @@ struct FamilyTreeView: View {
                             }
                             .disabled(people.isEmpty)
                         }
-                        // Reset zoom button
                         Button { resetView() } label: {
                             Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
                         }
@@ -123,7 +130,7 @@ struct FamilyTreeView: View {
                     }
                 }
                 if !selectedPeople.isEmpty {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button("Clear") { selectedPeople = [] }
                     }
                 }
@@ -134,10 +141,13 @@ struct FamilyTreeView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $showingShareSheet) {
-                if let url = exportedURL {
-                    ShareSheet(url: url)
-                }
+                if let url = exportedURL { ShareSheet(url: url) }
             }
+            .sheet(item: $detailPerson) { person in
+                PersonDetailSheet(person: person)
+            }
+            .onAppear { layout = TreeLayoutEngine(people: people).buildLayout() }
+            .onChange(of: layoutKey) { layout = TreeLayoutEngine(people: people).buildLayout() }
         }
     }
 
@@ -239,6 +249,7 @@ struct TreeCanvasView: View {
     let layout:         TreeLayout
     let selectedPeople: [Person]
     let onTap:          (Person) -> Void
+    var onLongPress:    ((Person) -> Void)? = nil
 
     private func isSelected(_ person: Person) -> Bool {
         selectedPeople.contains(where: { $0.id == person.id })
@@ -287,6 +298,8 @@ struct TreeCanvasView: View {
                         .frame(width: TreeLayoutEngine.nodeW, height: TreeLayoutEngine.nodeH)
                         .position(pp.position)
                         .onTapGesture { onTap(pp.person) }
+                        .onLongPressGesture { onLongPress?(pp.person) }
+                        .accessibilityLabel(pp.person.name)
                 }
 
                 // ── Unlinked people strip ────────────────────────────────

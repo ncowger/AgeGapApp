@@ -179,34 +179,7 @@ struct ContactBrowserView: View {
     }
 }
 
-// MARK: - Import candidate model
-
-struct ImportCandidate: Identifiable {
-    let id        = UUID()
-    let name:     String
-    let birthday: Date?
-    let photoData: Data?
-    let alreadyExists: Bool
-}
-
 // MARK: - Helpers
-
-func makeImportCandidates(from contacts: [CNContact],
-                          existing: [Person]) -> [ImportCandidate] {
-    let existingNames = Set(existing.map { $0.name.lowercased() })
-    return contacts.compactMap { contact -> ImportCandidate? in
-        let name = "\(contact.givenName) \(contact.familyName)"
-            .trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return nil }
-        let photoData: Data? = contact.imageDataAvailable ? contact.imageData : nil
-        return ImportCandidate(
-            name:         name,
-            birthday:     resolvedBirthday(contact.birthday),
-            photoData:    photoData,
-            alreadyExists: existingNames.contains(name.lowercased())
-        )
-    }
-}
 
 func resolvedBirthday(_ comps: DateComponents?) -> Date? {
     guard var c = comps else { return nil }

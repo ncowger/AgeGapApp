@@ -55,7 +55,7 @@ struct UpcomingBirthdaysView: View {
             }
             .navigationTitle("Birthdays")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape")
                     }
@@ -80,7 +80,9 @@ struct BirthdayRow: View {
     let person: Person
 
     var turningAge: Int {
-        person.isBirthdayToday ? person.age : person.age + 1
+        if person.isBirthdayToday { return person.age }
+        return Calendar.current.dateComponents([.year],
+            from: person.birthday, to: person.nextBirthday).year ?? person.age + 1
     }
 
     var body: some View {
@@ -120,5 +122,6 @@ struct BirthdayRow: View {
         }
         .frame(width: 44, height: 44)
         .clipShape(Circle())
+        .accessibilityLabel(person.name)
     }
 }

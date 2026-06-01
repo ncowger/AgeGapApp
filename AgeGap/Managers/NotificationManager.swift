@@ -63,7 +63,11 @@ final class NotificationManager {
 
         let content    = UNMutableNotificationContent()
         content.sound  = .default
-        let turningAge = person.age + 1
+        // Compute the age they'll be on their next birthday (not just today's age+1,
+        // which can be off by one if their birthday already passed this calendar year)
+        let turningAge = calendar.dateComponents([.year],
+                             from: person.birthday,
+                             to:   person.nextBirthday).year ?? 1
 
         switch daysBefore {
         case 0:

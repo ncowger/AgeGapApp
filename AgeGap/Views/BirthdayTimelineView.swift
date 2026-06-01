@@ -7,7 +7,10 @@ struct BirthdayTimelineView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
+            // Wrap in ZStack so NavigationStack sees a normal view as its direct
+            // child — bare GeometryReader collapses the large navigation title.
+            ZStack {
+             GeometryReader { geo in
                 if people.isEmpty {
                     ContentUnavailableView(
                         "No People",
@@ -42,11 +45,12 @@ struct BirthdayTimelineView: View {
                     }
                     .animation(.spring(response: 0.35), value: selectedPeople.count)
                 }
-            }
+             } // GeometryReader
+            } // ZStack
             .navigationTitle("Timeline")
             .toolbar {
                 if !selectedPeople.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button("Clear") { selectedPeople = [] }
                             .font(.subheadline)
                     }

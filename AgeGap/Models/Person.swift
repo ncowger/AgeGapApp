@@ -55,10 +55,11 @@ final class Person {
     }
 }
 
-/// Consistent color per person, derived from their name. "Me" is always blue.
+/// Consistent color per person, derived from their UUID. "Me" is always blue.
+/// Uses UUID bytes rather than String.hash so the color is stable across process launches.
 func colorForPerson(_ person: Person) -> Color {
     if person.isMe { return .blue }
     let palette: [Color] = [.purple, .orange, .pink, .teal, .indigo, .green, .cyan, .mint, .brown]
-    let index = abs(person.name.hash) % palette.count
+    let index = Int(person.id.uuid.0) % palette.count
     return palette[index]
 }

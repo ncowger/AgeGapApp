@@ -19,9 +19,15 @@ struct AgeGapApp: App {
             let cloudConfig = ModelConfiguration(cloudKitDatabase: .automatic)
             container = try ModelContainer(for: Person.self, configurations: cloudConfig)
         } catch {
-            // CloudKit not available yet — running in local-only mode
-            let localConfig = ModelConfiguration(isStoredInMemoryOnly: false)
-            container = try! ModelContainer(for: Person.self, configurations: localConfig)
+            // CloudKit not available — try plain local storage
+            do {
+                let localConfig = ModelConfiguration(isStoredInMemoryOnly: false)
+                container = try ModelContainer(for: Person.self, configurations: localConfig)
+            } catch {
+                // Last resort: in-memory only so the app never hard-crashes on launch
+                container = try! ModelContainer(for: Person.self,
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            }
         }
     }
 

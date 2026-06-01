@@ -29,12 +29,12 @@ struct PeopleListView: View {
             .searchable(text: $searchText, prompt: "Search people")
             .navigationTitle("Family & Friends")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showingAddPerson = true } label: {
                         Image(systemName: "plus")
                     }
                 }
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button { requestContactsAndShowPicker() } label: {
                         Label("Import", systemImage: "person.crop.circle.badge.plus")
                     }
@@ -105,6 +105,8 @@ struct PeopleListView: View {
 
 struct PersonRowView: View {
     let person: Person
+    // Decoded once per row, not on every render
+    @State private var cachedImage: UIImage?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -134,7 +136,7 @@ struct PersonRowView: View {
 
     private var personAvatar: some View {
         Group {
-            if let data = person.photoData, let img = UIImage(data: data) {
+            if let img = cachedImage {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
@@ -148,6 +150,14 @@ struct PersonRowView: View {
         }
         .frame(width: 48, height: 48)
         .clipShape(Circle())
+        .accessibilityLabel(person.name)
+        .task(id: person.photoData) {
+            if let data = person.photoData {
+                cachedImage = UIImage(data: data)
+            } else {
+                cachedImage = nil
+            }
+        }
     }
 
     private var birthdayCountdown: some View {

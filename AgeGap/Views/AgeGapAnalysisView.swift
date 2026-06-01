@@ -175,18 +175,27 @@ private struct AllPairsView: View {
     let people: [Person]
     @Binding var showClosest: Bool
 
+    // Unsorted pairs cached so the O(n²) build only runs when people change,
+    // not on every sort-picker tap or other render.
+    @State private var cachedPairs: [AgePair] = []
+    private var pairKey: String { people.map(\.id.uuidString).sorted().joined() }
+
     private var pairs: [AgePair] {
+        cachedPairs.sorted { showClosest ? $0.gapMonths < $1.gapMonths : $0.gapMonths > $1.gapMonths }
+    }
+
+    private var closestPair:  AgePair? { cachedPairs.min(by: { $0.gapMonths < $1.gapMonths }) }
+    private var furthestPair: AgePair? { cachedPairs.max(by: { $0.gapMonths < $1.gapMonths }) }
+
+    private func rebuildPairs() {
         var result = [AgePair]()
         for i in 0..<people.count {
             for j in (i+1)..<people.count {
                 result.append(AgePair(person1: people[i], person2: people[j]))
             }
         }
-        return result.sorted { showClosest ? $0.gapMonths < $1.gapMonths : $0.gapMonths > $1.gapMonths }
+        cachedPairs = result
     }
-
-    private var closestPair:  AgePair? { pairs.min(by: { $0.gapMonths < $1.gapMonths }) }
-    private var furthestPair: AgePair? { pairs.max(by: { $0.gapMonths < $1.gapMonths }) }
 
     var body: some View {
         Group {
@@ -218,6 +227,8 @@ private struct AllPairsView: View {
                 }
             }
         }
+        .onAppear { rebuildPairs() }
+        .onChange(of: pairKey) { rebuildPairs() }
     }
 }
 
