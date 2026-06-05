@@ -1,4 +1,4 @@
-# AgeGap
+# Birthday Gap
 
 An iPhone and iPad app for tracking birthdays across your extended family and friend group — with a visual family tree, chronological timeline, age gap analysis, and smart birthday reminders.
 
