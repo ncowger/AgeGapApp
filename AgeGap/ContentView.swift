@@ -33,7 +33,7 @@ struct ContentView: View {
                     List(AppTab.allCases, id: \.rawValue, selection: $selectedTab) { tab in
                         Label(tab.rawValue, systemImage: tab.icon).tag(tab)
                     }
-                    .navigationTitle("Age Gap")
+                    .navigationTitle("Birthday Gap")
                 } detail: {
                     detailView(for: selectedTab ?? .people)
                 }

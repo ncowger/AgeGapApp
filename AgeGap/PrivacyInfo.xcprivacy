@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+
+		<!-- UserDefaults — used to persist notification reminder preferences (@AppStorage / UserDefaults.standard) -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- CA92.1: Accessed to store app-state data that the user expects to persist across launches -->
+				<string>CA92.1</string>
+			</array>
+		</dict>
+
+		<!-- FileManager — used to write temporary PNG/PDF exports before sharing -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- 0A2A.1: Display file timestamps to the user; here writing temp export files -->
+				<string>0A2A.1</string>
+			</array>
+		</dict>
+
+	</array>
+
+	<!-- The app does not collect or transmit any data -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<key>NSPrivacyTracking</key>
+	<false/>
+</dict>
+</plist>

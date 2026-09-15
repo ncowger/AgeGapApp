@@ -158,7 +158,7 @@ struct ContactBrowserView: View {
     // MARK: - Load contacts from store
 
     private func loadContacts() {
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task.detached(priority: .userInitiated) {
             let store   = CNContactStore()
             let request = CNContactFetchRequest(keysToFetch: Self.keys)
             var result: [CNContact] = []
@@ -171,7 +171,7 @@ struct ContactBrowserView: View {
             result.sort {
                 "\($0.givenName) \($0.familyName)" < "\($1.givenName) \($1.familyName)"
             }
-            DispatchQueue.main.async {
+            await MainActor.run {
                 allContacts = result
                 isLoading = false
             }

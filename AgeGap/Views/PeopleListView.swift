@@ -71,7 +71,7 @@ struct PeopleListView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Please allow Age Gap to access Contacts in Settings to import birthdays.")
+                Text("Please allow Birthday Gap to access Contacts in Settings to import birthdays.")
             }
         }
     }

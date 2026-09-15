@@ -9,7 +9,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
         let avc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         // iPad requires a source anchor for the popover — centre it on screen.
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let root  = scene.windows.first?.rootViewController {
+           let root  = scene.keyWindow?.rootViewController {
             avc.popoverPresentationController?.sourceView = root.view
             avc.popoverPresentationController?.sourceRect = CGRect(
                 x: root.view.bounds.midX, y: root.view.bounds.midY, width: 0, height: 0
@@ -170,10 +170,10 @@ struct FamilyTreeView: View {
 
     private var zoomAndPanGesture: some Gesture {
         SimultaneousGesture(
-            MagnificationGesture()
+            MagnifyGesture()
                 .onChanged { value in
-                    let delta = value / lastScale
-                    lastScale = value
+                    let delta = value.magnification / lastScale
+                    lastScale = value.magnification
                     scale = min(max(scale * delta, minScale), maxScale)
                 }
                 .onEnded { _ in lastScale = 1.0 },
